@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Yutria3D.Api.Data;
 using Yutria3D.Api.Options;
+using Yutria3D.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,15 +18,39 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
 builder.Services.Configure<ApsOptions>(builder.Configuration.GetSection(ApsOptions.SectionName));
 
-var databaseUrl = builder.Configuration.GetConnectionString("Default")
-    ?? builder.Configuration["DATABASE_URL"]
-    ?? string.Empty;
+var apsMaxUploadMb = builder.Configuration.GetValue<int?>("Aps:MaxUploadMb")
+    ?? builder.Configuration.GetValue<int?>("MAX_UPLOAD_MB")
+    ?? 100;
+builder.Services.PostConfigure<ApsOptions>(aps =>
+{
+    if (aps.MaxUploadMb <= 0)
+        aps.MaxUploadMb = Math.Max(1, apsMaxUploadMb);
+    if (string.IsNullOrWhiteSpace(aps.Bucket))
+        aps.Bucket = builder.Configuration["APS_BUCKET"] ?? "yutria3d-bucket";
+    if (string.IsNullOrWhiteSpace(aps.ClientId))
+        aps.ClientId = builder.Configuration["APS_CLIENT_ID"] ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(aps.ClientSecret))
+        aps.ClientSecret = builder.Configuration["APS_CLIENT_SECRET"] ?? string.Empty;
+});
+
+var maxUploadBytes = (long)Math.Max(1, apsMaxUploadMb) * 1024 * 1024;
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(form =>
+    form.MultipartBodyLengthLimit = maxUploadBytes);
+builder.WebHost.ConfigureKestrel(kestrel =>
+    kestrel.Limits.MaxRequestBodySize = maxUploadBytes);
+
+var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    connectionString = builder.Configuration["DATABASE_URL"];
+}
+var databaseUrl = connectionString ?? string.Empty;
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -39,9 +64,19 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 });
 
-builder.Services.AddIdentityCore<IdentityUser>()
+builder.Services.AddIdentityCore<IdentityUser>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+    options.User.RequireUniqueEmail = true;
+})
     .AddEntityFrameworkStores<AppDbContext>();
 
+builder.Services.AddSingleton<Yutria3D.Api.Auth.JwtService>();
+builder.Services.AddScoped<Yutria3D.Api.Auth.AuthService>();
 var jwtKey = builder.Configuration["JWT_KEY"] ?? string.Empty;
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -59,6 +94,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         }
     });
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IApsTokenService, ApsTokenService>();
+builder.Services.AddHttpClient<IApsClient, ApsClient>(client =>
+    client.BaseAddress = new Uri("https://developer.api.autodesk.com/"))
+    .AddStandardResilienceHandler();
 
 var webOrigin = builder.Configuration["WEB_ORIGIN"] ?? "http://localhost:5173";
 builder.Services.AddCors(options =>
@@ -83,6 +123,7 @@ app.UseExceptionHandler();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health")

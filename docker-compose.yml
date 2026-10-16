@@ -30,8 +30,8 @@ services:
   web:
     build:
       context: ./apps/web
-    args:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
     ports:
       - "5173:80"
     depends_on:
