@@ -1,0 +1,31 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-store/
+
+# pnpm
+pnpm-debug.log*
+
+# Vite
+apps/web/dist/
+
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
+TestResults/
+*.nupkg
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db

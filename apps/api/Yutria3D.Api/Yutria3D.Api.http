@@ -1,0 +1,6 @@
+@Yutria3D.Api_HostAddress = http://localhost:5260
+
+GET {{Yutria3D.Api_HostAddress}}/health
+Accept: application/json
+
+###

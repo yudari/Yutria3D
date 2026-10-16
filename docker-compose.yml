@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: yutria3d
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      DATABASE_URL: Host=postgres;Port=5432;Database=yutria3d;Username=postgres;Password=postgres
+      WEB_ORIGIN: http://localhost:5173
+      APS_CLIENT_ID: ${APS_CLIENT_ID}
+      APS_CLIENT_SECRET: ${APS_CLIENT_SECRET}
+      APS_BUCKET: ${APS_BUCKET:-yutria3d-bucket}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      JWT_KEY: ${JWT_KEY:-changeme-min-32-chars-secret-key-here}
+    ports:
+      - "5000:8080"
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: ./apps/web
+    args:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
