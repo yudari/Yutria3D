@@ -1,8 +1,12 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import { BrowserRouter } from "react-router-dom";
 import ModelsPage from "./pages/ModelsPage";
 import ViewerPage from "./pages/ViewerPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import RequireAuth from "./components/RequireAuth";
 import Wordmark from "./components/Wordmark";
+import { useAuthStore } from "./store/auth";
 
 function HomePage(): JSX.Element {
   return (
@@ -30,6 +34,15 @@ function HomePage(): JSX.Element {
 }
 
 function Layout({ children }: { children: React.ReactNode }): JSX.Element {
+  const token = useAuthStore((s) => s.token);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+
+  function handleLogout(): void {
+    logout();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
@@ -37,13 +50,23 @@ function Layout({ children }: { children: React.ReactNode }): JSX.Element {
           <Link to="/" aria-label="Yutria3D beranda">
             <Wordmark />
           </Link>
-          <div className="flex gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm">
             <Link to="/models" className="hover:underline">
               Models
             </Link>
-            <Link to="/models/contoh" className="hover:underline">
-              Viewer
-            </Link>
+            {token ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="hover:underline"
+              >
+                Keluar
+              </button>
+            ) : (
+              <Link to="/login" className="hover:underline">
+                Masuk
+              </Link>
+            )}
           </div>
         </nav>
       </header>
@@ -61,8 +84,24 @@ export default function App(): JSX.Element {
       <Layout>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/models" element={<ModelsPage />} />
-          <Route path="/models/:id" element={<ViewerPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/models"
+            element={
+              <RequireAuth>
+                <ModelsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/models/:id"
+            element={
+              <RequireAuth>
+                <ViewerPage />
+              </RequireAuth>
+            }
+          />
         </Routes>
       </Layout>
     </BrowserRouter>

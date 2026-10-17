@@ -15,6 +15,11 @@ namespace Yutria3D.Api.Controllers;
 public sealed record ModelDto(Guid Id, string Name, long SizeBytes, DateTime CreatedAt, string Status, int Progress);
 public sealed record ModelDetailDto(Guid Id, string Name, long SizeBytes, DateTime CreatedAt, string Status, int Progress, string Urn);
 public sealed record StatusDto(string Status, int Progress, string? FailureMessage);
+public sealed class UploadRequest
+{
+    public IFormFile? File { get; set; }
+    public string? Name { get; set; }
+}
 
 [ApiController]
 [Route("api/models")]
@@ -33,11 +38,13 @@ public sealed class ModelsController : ControllerBase
     }
 
     [HttpPost]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<ModelDetailDto>> Upload(
-        [FromForm] IFormFile? file,
-        [FromForm] string? name,
+        [FromForm] UploadRequest request,
         CancellationToken ct)
     {
+        var file = request.File;
+        var name = request.Name;
         var userId = CurrentUserId();
         if (userId is null)
             return Unauthorized();
