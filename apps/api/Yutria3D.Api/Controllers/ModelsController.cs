@@ -91,59 +91,38 @@ public sealed class ModelsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = model.Id }, ToDetail(model));
     }
 
-    /// <summary>Salin file contoh dari server ke akun pengguna lalu antrekan penerjemahan.</summary>
+    /// <summary>Tautkan file contoh yang sudah diterjemahkan di Autodesk ke akun pengguna. Tanpa unggah ulang.</summary>
     [HttpPost("sample")]
-    public async Task<ActionResult<ModelDetailDto>> UploadSample(CancellationToken ct)
+    public async Task<ActionResult<ModelDetailDto>> LinkSample(CancellationToken ct)
     {
         var userId = CurrentUserId();
         if (userId is null)
             return Unauthorized();
-        const string namaContoh = "bistro-restaurant-booth-modular-seating.rvt";
-        var kandidat = new[]
-        {
-            Environment.GetEnvironmentVariable("SAMPLE_DIR"),
-            Path.Combine(AppContext.BaseDirectory, "SampleFiles"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "SampleFiles"),
-        };
-        string? contohPath = null;
-        foreach (var dir in kandidat)
-        {
-            if (string.IsNullOrWhiteSpace(dir)) continue;
-            var p = Path.GetFullPath(Path.Combine(dir, namaContoh));
-            if (System.IO.File.Exists(p)) { contohPath = p; break; }
-        }
-        if (contohPath is null)
-            return NotFound(new { error = "File contoh tidak tersedia di server." });
-        var info = new FileInfo(contohPath);
+        var sudahAda = await _db.Models.AnyAsync(m => m.UserId == userId && m.ObjectKey == SampleObjectKey, ct);
+        if (sudahAda)
+            return Conflict(new { error = "File contoh sudah ada di akun Anda." });
         var model = new Model
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Name = Path.GetFileNameWithoutExtension(info.Name),
-            BucketKey = _apsOptions.Bucket,
-            ObjectKey = $"{Guid.NewGuid():N}.rvt",
-            Status = "pending",
-            Progress = 0,
-            SizeBytes = info.Length,
+            Name = "bistro-restaurant-booth-modular-seating (contoh)",
+            BucketKey = SampleBucketKey,
+            ObjectKey = SampleObjectKey,
+            Urn = SampleUrn,
+            Status = "success",
+            Progress = 100,
+            SizeBytes = SampleSizeBytes,
             CreatedAt = DateTime.UtcNow,
         };
         _db.Models.Add(model);
         await _db.SaveChangesAsync(ct);
-        try
-        {
-            await using var stream = System.IO.File.OpenRead(contohPath);
-            await IngestAsync(model, stream, info.Name, ct);
-        }
-        catch (Exception ex) when (!ct.IsCancellationRequested)
-        {
-            model.Status = "failed";
-            model.FailureMessage = ex.Message;
-            await _db.SaveChangesAsync(ct);
-            return StatusCode(StatusCodes.Status502BadGateway,
-                new { error = "APS upload/translation failed.", detail = ex.Message });
-        }
         return CreatedAtAction(nameof(GetById), new { id = model.Id }, ToDetail(model));
     }
+
+    private const string SampleBucketKey = "yutria3d-bucket";
+    private const string SampleObjectKey = "d4de4c018f2940c49fc9465384ed7097.rvt";
+    private const string SampleUrn = "dXJuOmFkc2sub2JqZWN0czpvcy5vYmplY3Q6eXV0cmlhM2QtYnVja2V0L2Q0ZGU0YzAxOGYyOTQwYzQ5ZmM5NDY1Mzg0ZWQ3MDk3LnJ2dA";
+    private const long SampleSizeBytes = 2531328;
 
     private async Task IngestAsync(Model model, Stream content, string fileName, CancellationToken ct)
     {
@@ -231,11 +210,16 @@ public sealed class ModelsController : ControllerBase
         if (model is null)
             return NotFound();
 
+        var contohBersama = model.ObjectKey == SampleObjectKey;
         try
         {
-            if (!string.IsNullOrEmpty(model.Urn))
-                await _aps.DeleteManifestAsync(model.Urn, ct);
-            await _aps.DeleteObjectAsync(model.BucketKey, model.ObjectKey, ct);
+            // File contoh dipakai bersama: hapus tautan saja, objek Autodesk tetap.
+            if (!contohBersama)
+            {
+                if (!string.IsNullOrEmpty(model.Urn))
+                    await _aps.DeleteManifestAsync(model.Urn, ct);
+                await _aps.DeleteObjectAsync(model.BucketKey, model.ObjectKey, ct);
+            }
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {

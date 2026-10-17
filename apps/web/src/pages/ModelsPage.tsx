@@ -172,7 +172,7 @@ export default function ModelsPage(): JSX.Element {
   const contohMutation = useMutation({
     mutationFn: () => uploadSample(),
     onSuccess: () => {
-      tampilToast("File contoh dimuat. Menerjemahkan file 3D…", "sukses");
+      tampilToast("File contoh siap. Klik untuk melihat.", "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
@@ -275,7 +275,7 @@ export default function ModelsPage(): JSX.Element {
                 disabled={contohMutation.isPending}
                 className="rounded border border-blue-300 px-4 py-2 font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
               >
-                {contohMutation.isPending ? "Memuat contoh…" : "Coba file contoh"}
+                {contohMutation.isPending ? "Menyiapkan…" : "Lihat file contoh (tanpa unggah)"}
               </button>
             </div>
           </section>
