@@ -46,7 +46,7 @@ export default function RegisterPage(): JSX.Element {
     <main className="mx-auto max-w-md px-6 py-16">
       <h1 className="text-2xl font-bold">Daftar</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Buat akun untuk mulai mengelola model 3D.
+        Buat akun untuk mulai mengelola file 3D.
       </p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div>

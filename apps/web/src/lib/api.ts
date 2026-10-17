@@ -131,7 +131,7 @@ export async function fetchModels(): Promise<ModelDto[]> {
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat daftar model"),
+      await errorMessage(res, "Gagal memuat daftar file 3D"),
     );
   const data: unknown = await res.json();
   if (!Array.isArray(data))
@@ -143,11 +143,11 @@ export async function fetchModelById(id: string): Promise<ModelDetailDto> {
   const res = await authFetch(`/api/models/${id}`);
   if (res.status === 401)
     throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "Model tidak ditemukan.");
+  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat detail model"),
+      await errorMessage(res, "Gagal memuat detail file 3D"),
     );
   return (await res.json()) as ModelDetailDto;
 }
@@ -156,11 +156,11 @@ export async function fetchStatus(id: string): Promise<StatusDto> {
   const res = await authFetch(`/api/models/${id}/status`);
   if (res.status === 401)
     throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "Model tidak ditemukan.");
+  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat status model"),
+      await errorMessage(res, "Gagal memuat status file 3D"),
     );
   return (await res.json()) as StatusDto;
 }
@@ -169,11 +169,11 @@ export async function deleteModel(id: string): Promise<void> {
   const res = await authFetch(`/api/models/${id}`, { method: "DELETE" });
   if (res.status === 401)
     throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "Model tidak ditemukan.");
+  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal menghapus model"),
+      await errorMessage(res, "Gagal menghapus file 3D"),
     );
 }
 

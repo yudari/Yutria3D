@@ -225,7 +225,7 @@ export default function ViewerPage(): JSX.Element {
         (tree) => {
           if (batal) return;
           let akar = 0;
-          let namaAkar = "Model";
+          let namaAkar = "File 3D";
           try {
             akar = tree.getRootId();
             namaAkar = tree.getNodeName(akar);
@@ -334,7 +334,7 @@ export default function ViewerPage(): JSX.Element {
       if (typeof url === "string" && url.length > 0) {
         const a = document.createElement("a");
         a.href = url;
-        a.download = `yutria3d-${id ?? "model"}.png`;
+        a.download = `yutria3d-${id ?? "file-3d"}.png`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -357,7 +357,7 @@ export default function ViewerPage(): JSX.Element {
           &larr; Kembali
         </Link>
         <h1 className="truncate text-lg font-bold">
-          {modelQuery.data ? modelQuery.data.name : `Model ${id ?? ""}`}
+          {modelQuery.data ? modelQuery.data.name : (id ?? "")}
         </h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button
@@ -411,14 +411,14 @@ export default function ViewerPage(): JSX.Element {
         <section className="relative min-w-0 flex-1 bg-slate-900">
           {modelQuery.isLoading && (
             <p className="absolute inset-0 flex items-center justify-center text-slate-200">
-              Memuat info model…
+              Memuat info file 3D…
             </p>
           )}
           {modelQuery.isError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-200">
-              <p>Gagal memuat model.</p>
+              <p>Gagal memuat file 3D.</p>
               <Link to="/models" className="text-sm text-blue-300 hover:underline">
-                Kembali ke Models
+                Kembali ke File 3D
               </Link>
             </div>
           )}
@@ -429,10 +429,10 @@ export default function ViewerPage(): JSX.Element {
                 {modelQuery.data.progress}%)
               </p>
               <p className="text-sm text-slate-400">
-                Model masih diterjemahkan. Halaman memuat ulang otomatis.
+                File 3D masih diterjemahkan. Halaman memuat ulang otomatis.
               </p>
               <Link to="/models" className="text-sm text-blue-300 hover:underline">
-                Kembali ke Models
+                Kembali ke File 3D
               </Link>
             </div>
           )}
@@ -511,7 +511,7 @@ export default function ViewerPage(): JSX.Element {
             </section>
 
             <section>
-              <h2 className="text-sm font-semibold">Struktur model</h2>
+              <h2 className="text-sm font-semibold">Struktur file 3D</h2>
               {pohon.length === 0 ? (
                 <p className="mt-1 text-sm text-slate-500">
                   Struktur belum tersedia.

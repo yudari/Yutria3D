@@ -36,7 +36,7 @@ export default function ApsViewer({
       <div ref={containerRef} className="h-full w-full" />
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-          <p className="text-sm text-slate-600">Memuat model 3D…</p>
+          <p className="text-sm text-slate-600">Memuat file 3D…</p>
         </div>
       )}
       {error && !loading && (

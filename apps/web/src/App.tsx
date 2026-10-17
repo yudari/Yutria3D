@@ -57,7 +57,7 @@ function Layout({ children }: { children: React.ReactNode }): JSX.Element {
               {gelap ? "☀️ Terang" : "🌙 Gelap"}
             </button>
             <Link to="/models" className="hover:underline">
-              Models
+              File 3D
             </Link>
             {token ? (
               <button
@@ -88,17 +88,17 @@ function HomePage(): JSX.Element {
     <main className="mx-auto max-w-3xl px-6 py-16 text-center">
       <h1 className="text-4xl font-bold tracking-tight">Yutria3D</h1>
       <p className="mt-4 text-slate-600">
-        Pratinjau dan kelola model 3D berbasis Autodesk Platform Services.
+        Pratinjau dan kelola file 3D berbasis Autodesk Platform Services.
       </p>
       <div className="mt-8 flex items-center justify-center gap-4">
         <Link
           to="/models"
           className="rounded bg-slate-900 px-4 py-2 text-white hover:bg-slate-700"
         >
-          Lihat Model
+          Lihat File 3D
         </Link>
         <span className="rounded border border-slate-200 px-4 py-2 text-slate-400">
-          Unggah .rvt lalu klik model untuk membuka Viewer
+          Unggah .rvt lalu klik file 3D untuk membuka Viewer
         </span>
       </div>
     </main>

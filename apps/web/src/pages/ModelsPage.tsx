@@ -84,9 +84,11 @@ interface Toast {
 function UploadDropzone({
   onPilih,
   sedangUnggah,
+  besar,
 }: {
   onPilih: (file: File) => void;
   sedangUnggah: boolean;
+  besar?: boolean;
 }): JSX.Element {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -105,9 +107,9 @@ function UploadDropzone({
         if (f) onPilih(f);
       }}
       onClick={() => inputRef.current?.click()}
-      className={`cursor-pointer rounded border-2 border-dashed p-6 text-center text-sm ${
-        drag ? "border-blue-500 bg-blue-50" : "border-slate-300"
-      }`}
+      className={`cursor-pointer rounded border-2 border-dashed text-center text-sm ${
+        besar ? "p-12 text-base" : "p-6"
+      } ${drag ? "border-blue-500 bg-blue-50" : "border-slate-300"}`}
     >
       <input
         ref={inputRef}
@@ -157,7 +159,7 @@ export default function ModelsPage(): JSX.Element {
     },
     onSuccess: () => {
       setProgress(null);
-      tampilToast("File terkirim ke Autodesk. Menerjemahkan model…", "sukses");
+      tampilToast("File terkirim ke Autodesk. Menerjemahkan file 3D…", "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
@@ -169,7 +171,7 @@ export default function ModelsPage(): JSX.Element {
   const hapusMutation = useMutation({
     mutationFn: (id: string) => deleteModel(id),
     onSuccess: () => {
-      tampilToast("Model dihapus.", "sukses");
+      tampilToast("File 3D dihapus.", "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
@@ -186,32 +188,36 @@ export default function ModelsPage(): JSX.Element {
   }
 
   function handleHapus(m: ModelDto): void {
-    if (!window.confirm(`Hapus model "${m.name}"?`)) return;
+    if (!window.confirm(`Hapus file 3D "${m.name}"?`)) return;
     hapusMutation.mutate(m.id);
   }
 
   const models = modelsQuery.data ?? [];
+  const kosong =
+    modelsQuery.isSuccess && models.length === 0 && !unggahMutation.isPending && progress === null;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="text-2xl font-bold">Model Saya</h1>
+      <h1 className="text-2xl font-bold">File 3D Saya</h1>
 
-      <div className="mt-6">
-        <UploadDropzone onPilih={handlePilih} sedangUnggah={unggahMutation.isPending} />
-        {progress !== null && (
-          <div className="mt-3">
-            <p className="text-sm text-slate-600">
-              Tahap 1/2 — Mengunggah {namaUnggah}… {progress}%
-            </p>
-            <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
-              <div
-                className="h-full bg-blue-600 transition-all"
-                style={{ width: `${progress}%` }}
-              />
+      {!kosong && (
+        <div className="mt-6">
+          <UploadDropzone onPilih={handlePilih} sedangUnggah={unggahMutation.isPending} />
+          {progress !== null && (
+            <div className="mt-3">
+              <p className="text-sm text-slate-600">
+                Tahap 1/2 — Mengunggah {namaUnggah}… {progress}%
+              </p>
+              <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
+                <div
+                  className="h-full bg-blue-600 transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6">
         {modelsQuery.isPending && (
@@ -226,13 +232,30 @@ export default function ModelsPage(): JSX.Element {
         )}
         {modelsQuery.isError && (
           <p className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            Gagal memuat daftar model. Coba lagi.
+            Gagal memuat daftar file 3D. Coba lagi.
           </p>
         )}
-        {modelsQuery.isSuccess && models.length === 0 && (
-          <p className="rounded border p-4 text-sm text-slate-500">
-            Belum ada model. Unggah file .rvt pertama Anda.
-          </p>
+        {kosong && (
+          <section className="mt-8 rounded-lg border bg-slate-50 p-8 text-center dark:bg-slate-900">
+            <h2 className="text-2xl font-bold">Unggah file .rvt pertama Anda</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+              Mulai dalam tiga langkah mudah:
+            </p>
+            <ol className="mx-auto mt-4 grid max-w-2xl gap-3 text-left text-sm sm:grid-cols-3">
+              <li className="rounded border bg-white p-3">
+                <span className="font-bold">1. Unggah</span> — seret file .rvt ke kotak di bawah.
+              </li>
+              <li className="rounded border bg-white p-3">
+                <span className="font-bold">2. Tunggu penerjemahan</span> — Autodesk memproses file Anda.
+              </li>
+              <li className="rounded border bg-white p-3">
+                <span className="font-bold">3. Klik untuk melihat</span> — buka file 3D di Viewer.
+              </li>
+            </ol>
+            <div className="mx-auto mt-6 max-w-2xl">
+              <UploadDropzone onPilih={handlePilih} sedangUnggah={unggahMutation.isPending} besar />
+            </div>
+          </section>
         )}
         {modelsQuery.isSuccess && models.length > 0 && (
           <ul className="space-y-3">
