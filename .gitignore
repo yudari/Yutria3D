@@ -29,3 +29,9 @@ TestResults/
 # OS / editor
 .DS_Store
 Thumbs.db
+
+# Lokal saja (skill agen, catatan riset, setting editor) — tidak ikut push
+docs/
+.vscode/
+.claude/
+.agents/
