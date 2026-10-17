@@ -97,7 +97,7 @@ public sealed class ApsClient : IApsClient
         };
         await AuthorizeAsync(complete, ct);
         using var completeRes = await _http.SendAsync(complete, ct);
-        completeRes.EnsureSuccessStatusCode();
+        await EnsureApsSuccessAsync(completeRes, "Complete-upload", ct);
         var done = await completeRes.Content.ReadFromJsonAsync<CompleteUploadResponse>(ct)
             ?? throw new InvalidOperationException("Empty complete-upload response.");
         if (string.IsNullOrWhiteSpace(done.ObjectId))
@@ -116,7 +116,13 @@ public sealed class ApsClient : IApsClient
         };
         await AuthorizeAsync(job, ct);
         using var res = await _http.SendAsync(job, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureApsSuccessAsync(res, "Translation job", ct);
+    }
+    private static async Task EnsureApsSuccessAsync(HttpResponseMessage res, string step, CancellationToken ct)
+    {
+        if (res.IsSuccessStatusCode) return;
+        var body = await res.Content.ReadAsStringAsync(ct);
+        throw new InvalidOperationException($"{step} failed {(int)res.StatusCode}: {body}");
     }
 
     public async Task<string?> GetManifestAsync(string urn, CancellationToken ct = default)
