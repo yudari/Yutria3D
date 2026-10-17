@@ -97,12 +97,9 @@ function HomePage(): JSX.Element {
         >
           Lihat Model
         </Link>
-        <Link
-          to="/models/contoh"
-          className="rounded border border-slate-300 px-4 py-2 hover:bg-slate-100"
-        >
-          Buka Viewer
-        </Link>
+        <span className="rounded border border-slate-200 px-4 py-2 text-slate-400">
+          Unggah .rvt lalu klik model untuk membuka Viewer
+        </span>
       </div>
     </main>
   );
