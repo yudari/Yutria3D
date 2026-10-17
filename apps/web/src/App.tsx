@@ -77,7 +77,7 @@ function Layout({ children }: { children: React.ReactNode }): JSX.Element {
       </header>
       <div className="flex-1">{children}</div>
       <footer className="border-t px-6 py-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-        Didukung oleh Autodesk Platform Services
+        Dibuat oleh Yutria3D · Didukung oleh Autodesk Platform Services
       </footer>
     </div>
   );

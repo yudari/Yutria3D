@@ -77,13 +77,7 @@ public sealed class ModelsController : ControllerBase
 
         try
         {
-            await _aps.EnsureBucketAsync(model.BucketKey, ct);
-            await using var stream = file.OpenReadStream();
-            var objectId = await _aps.SignedS3UploadAsync(stream, model.BucketKey, model.ObjectKey, ct);
-            model.Urn = Urn.ToBase64UrlNoPadding(objectId);
-            await _aps.StartTranslationAsync(objectId, ct);
-            model.Status = "inprogress";
-            await _db.SaveChangesAsync(ct);
+            await IngestAsync(model, file.OpenReadStream(), file.FileName, ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
@@ -95,6 +89,70 @@ public sealed class ModelsController : ControllerBase
         }
 
         return CreatedAtAction(nameof(GetById), new { id = model.Id }, ToDetail(model));
+    }
+
+    /// <summary>Salin file contoh dari server ke akun pengguna lalu antrekan penerjemahan.</summary>
+    [HttpPost("sample")]
+    public async Task<ActionResult<ModelDetailDto>> UploadSample(CancellationToken ct)
+    {
+        var userId = CurrentUserId();
+        if (userId is null)
+            return Unauthorized();
+        const string namaContoh = "bistro-restaurant-booth-modular-seating.rvt";
+        var kandidat = new[]
+        {
+            Environment.GetEnvironmentVariable("SAMPLE_DIR"),
+            Path.Combine(AppContext.BaseDirectory, "SampleFiles"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "SampleFiles"),
+        };
+        string? contohPath = null;
+        foreach (var dir in kandidat)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) continue;
+            var p = Path.GetFullPath(Path.Combine(dir, namaContoh));
+            if (System.IO.File.Exists(p)) { contohPath = p; break; }
+        }
+        if (contohPath is null)
+            return NotFound(new { error = "File contoh tidak tersedia di server." });
+        var info = new FileInfo(contohPath);
+        var model = new Model
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Name = Path.GetFileNameWithoutExtension(info.Name),
+            BucketKey = _apsOptions.Bucket,
+            ObjectKey = $"{Guid.NewGuid():N}.rvt",
+            Status = "pending",
+            Progress = 0,
+            SizeBytes = info.Length,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.Models.Add(model);
+        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await using var stream = System.IO.File.OpenRead(contohPath);
+            await IngestAsync(model, stream, info.Name, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            model.Status = "failed";
+            model.FailureMessage = ex.Message;
+            await _db.SaveChangesAsync(ct);
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "APS upload/translation failed.", detail = ex.Message });
+        }
+        return CreatedAtAction(nameof(GetById), new { id = model.Id }, ToDetail(model));
+    }
+
+    private async Task IngestAsync(Model model, Stream content, string fileName, CancellationToken ct)
+    {
+        await _aps.EnsureBucketAsync(model.BucketKey, ct);
+        var objectId = await _aps.SignedS3UploadAsync(content, model.BucketKey, model.ObjectKey, ct);
+        model.Urn = Urn.ToBase64UrlNoPadding(objectId);
+        await _aps.StartTranslationAsync(objectId, ct);
+        model.Status = "inprogress";
+        await _db.SaveChangesAsync(ct);
     }
 
     [HttpGet]

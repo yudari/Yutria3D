@@ -177,7 +177,21 @@ export async function deleteModel(id: string): Promise<void> {
     );
 }
 
-/** Upload via XHR agar progres unggah bisa dilaporkan. */
+/** Minta server menyalin file contoh ke akun pengguna. */
+export async function uploadSample(): Promise<ModelDetailDto> {
+  const res = await authFetch("/api/models/sample", { method: "POST" });
+  if (res.status === 401)
+    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
+  if (res.status === 404)
+    throw new ApiError(404, "File contoh tidak tersedia di server.");
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      await errorMessage(res, "Gagal memuat file contoh"),
+    );
+  return (await res.json()) as ModelDetailDto;
+}
+
 export function uploadModel(
   file: File,
   name?: string,

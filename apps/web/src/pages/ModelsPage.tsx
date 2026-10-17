@@ -6,6 +6,7 @@ import {
   fetchModels,
   fetchStatus,
   uploadModel,
+  uploadSample,
   type ModelDto,
   type StatusDto,
 } from "../lib/api";
@@ -168,6 +169,17 @@ export default function ModelsPage(): JSX.Element {
     },
   });
 
+  const contohMutation = useMutation({
+    mutationFn: () => uploadSample(),
+    onSuccess: () => {
+      tampilToast("File contoh dimuat. Menerjemahkan file 3D…", "sukses");
+      void queryClient.invalidateQueries({ queryKey: ["models"] });
+    },
+    onError: (e: unknown) => {
+      tampilToast(e instanceof Error ? e.message : "Gagal memuat contoh.", "galat");
+    },
+  });
+
   const hapusMutation = useMutation({
     mutationFn: (id: string) => deleteModel(id),
     onSuccess: () => {
@@ -254,6 +266,17 @@ export default function ModelsPage(): JSX.Element {
             </ol>
             <div className="mx-auto mt-6 max-w-2xl">
               <UploadDropzone onPilih={handlePilih} sedangUnggah={unggahMutation.isPending} besar />
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+              <span className="text-slate-400">atau</span>
+              <button
+                type="button"
+                onClick={() => contohMutation.mutate()}
+                disabled={contohMutation.isPending}
+                className="rounded border border-blue-300 px-4 py-2 font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+              >
+                {contohMutation.isPending ? "Memuat contoh…" : "Coba file contoh"}
+              </button>
             </div>
           </section>
         )}
