@@ -1,6 +1,13 @@
-const API_URL =
-  import.meta.env.VITE_API_URL as string | undefined ??
-  "http://localhost:5000";
+function normalizeApiUrl(raw: string | undefined): string {
+  const fallback = "http://localhost:5000";
+  const value = (raw ?? "").trim() || fallback;
+  // Render `fromService ... property: host` hanya memberi hostname (tanpa skema).
+  return value.includes("://") ? value : `https://${value}`;
+}
+
+const API_URL = normalizeApiUrl(
+  import.meta.env.VITE_API_URL as string | undefined,
+);
 
 export const TOKEN_KEY = "yutria3d.token";
 

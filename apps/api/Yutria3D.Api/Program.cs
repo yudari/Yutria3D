@@ -50,17 +50,19 @@ if (string.IsNullOrWhiteSpace(connectionString))
 {
     connectionString = builder.Configuration["DATABASE_URL"];
 }
-var databaseUrl = connectionString ?? string.Empty;
+// Render Postgres memberi DATABASE_URL format URL (postgres://...),
+// sedangkan Npgsql hanya menerima format ADO.NET (Host=...;...).
+connectionString = Program.NormalizeDatabaseUrl(connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (string.IsNullOrWhiteSpace(databaseUrl))
+    if (string.IsNullOrWhiteSpace(connectionString))
     {
         options.UseInMemoryDatabase("yutria3d");
     }
     else
     {
-        options.UseNpgsql(databaseUrl);
+        options.UseNpgsql(connectionString);
     }
 });
 
@@ -105,6 +107,10 @@ builder.Services.AddHttpClient("aps-s3", client =>
 });
 
 var webOrigin = builder.Configuration["WEB_ORIGIN"] ?? "http://localhost:5173";
+// Render `fromService ... property: host` hanya memberi hostname (tanpa skema),
+// jadi lengkapi skema https:// bila belum ada (CORS menolak origin tanpa skema).
+if (!webOrigin.Contains("://", StringComparison.Ordinal))
+    webOrigin = $"https://{webOrigin}";
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy => policy
@@ -135,4 +141,45 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 
 app.Run();
 
-public partial class Program;
+public partial class Program
+{
+    /// <summary>
+    /// Ubah DATABASE_URL format URL (postgres://user:pass@host:port/db)
+    /// menjadi format ADO.NET yang dimengerti Npgsql.
+    /// Format Host=...;... diteruskan apa adanya.
+    /// </summary>
+    internal static string? NormalizeDatabaseUrl(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return raw;
+        var trimmed = raw.Trim();
+        if (!trimmed.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+            && !trimmed.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+            return trimmed;
+        try
+        {
+            var uri = new Uri(trimmed);
+            var userInfo = uri.UserInfo.Split(':', 2);
+            var parts = new List<string> { $"Host={uri.Host}" };
+            if (uri.Port > 0)
+                parts.Add($"Port={uri.Port}");
+            parts.Add($"Database={uri.AbsolutePath.Trim('/')}");
+            parts.Add($"Username={Uri.UnescapeDataString(userInfo[0])}");
+            if (userInfo.Length > 1)
+                parts.Add($"Password={Uri.UnescapeDataString(userInfo[1])}");
+            var sslMode = "Require"; // Wajib untuk koneksi eksternal Render.
+            foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var kv = pair.Split('=', 2);
+                if (kv.Length == 2 && kv[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase))
+                    sslMode = kv[1];
+            }
+            parts.Add($"SSL Mode={sslMode}");
+            return string.Join(';', parts);
+        }
+        catch (UriFormatException)
+        {
+            return trimmed;
+        }
+    }
+}

@@ -9,27 +9,36 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       DATABASE_URL: Host=postgres;Port=5432;Database=yutria3d;Username=postgres;Password=postgres
       WEB_ORIGIN: http://localhost:5173
       APS_CLIENT_ID: ${APS_CLIENT_ID}
       APS_CLIENT_SECRET: ${APS_CLIENT_SECRET}
       APS_BUCKET: ${APS_BUCKET:-yutria3d-bucket}
-      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-100}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-500}
       JWT_KEY: ${JWT_KEY:-changeme-min-32-chars-secret-key-here}
     ports:
       - "5000:8080"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   web:
     build:
-      context: ./apps/web
+      # Konteks = root agar Dockerfile web bisa memakai pnpm-lock.yaml root.
+      context: .
+      dockerfile: ./apps/web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
     ports:

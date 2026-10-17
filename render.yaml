@@ -1,0 +1,68 @@
+# Blueprint Yutria3D untuk Render (free tier).
+# Cara pakai: push repo ke GitHub, lalu di dashboard Render pilih
+# "New +" -> "Blueprint" -> pilih repo ini. Isi secret yang ditandai
+# `sync: false` di dashboard (APS_CLIENT_ID, APS_CLIENT_SECRET, JWT_KEY
+# bila tidak memakai generateValue).
+# Referensi skema: https://render.com/docs/blueprint-spec
+
+services:
+  # --- Backend .NET 8 (Docker) ---
+  - type: web
+    name: yutria3d-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    dockerfilePath: ./Dockerfile.api
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DATABASE_URL # Format postgres://... dikonversi otomatis ke ADO.NET oleh Program.NormalizeDatabaseUrl.
+        fromDatabase:
+          name: yutria3d-db
+          property: connectionString
+      # WEB_ORIGIN/VITE_API_URL butuh URL lengkap, sedangkan `property: host`
+      # hanya memberi hostname — kode (Program.cs / api.ts) otomatis
+      # melengkapi skema https:// bila belum ada.
+      - key: WEB_ORIGIN
+        fromService:
+          type: web
+          name: yutria3d-web
+          property: host
+      - key: APS_CLIENT_ID
+        sync: false
+      - key: APS_CLIENT_SECRET
+        sync: false
+      - key: APS_BUCKET
+        value: yutria3d-bucket
+      - key: MAX_UPLOAD_MB
+        value: 500
+      - key: JWT_KEY
+        generateValue: true
+
+  # --- Frontend Vite (static site) ---
+  # VITE_API_URL dibakar ke bundle saat build, jadi diambil dari URL backend.
+  - type: web
+    name: yutria3d-web
+    runtime: static
+    plan: free
+    rootDir: apps/web
+    buildCommand: pnpm install && pnpm build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite # SPA fallback agar React Router tetap jalan di refresh/deep link.
+        source: /*
+        destination: /index.html
+    envVars:
+      # VITE_API_URL dibakar ke bundle saat build; api.ts otomatis
+      # melengkapi skema https:// bila nilainya masih hostname polos.
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: yutria3d-api
+          property: host
+
+databases:
+  - name: yutria3d-db
+    plan: free
+    databaseName: yutria3d
+    postgresMajorVersion: "16"
