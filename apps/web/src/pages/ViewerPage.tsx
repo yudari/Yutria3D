@@ -157,7 +157,62 @@ export default function ViewerPage(): JSX.Element {
   >([]);
   const [namaTerpilih, setNamaTerpilih] = useState<string>("");
   const [memotret, setMemotret] = useState<boolean>(false);
+  const [perspektif, setPerspektif] = useState<boolean>(true);
+  const [tampilGaris, setTampilGaris] = useState<boolean>(false);
+  const [latarGelap, setLatarGelap] = useState<boolean>(true);
 
+  function gantiProyeksi(): void {
+    if (viewer === null) return;
+    try {
+      if (perspektif) viewer.navigation.toOrthographic();
+      else viewer.navigation.toPerspective();
+      setPerspektif((v) => !v);
+    } catch {
+      /* abaikan: tombol tetap pada keadaan semula */
+    }
+  }
+
+  function gantiGarisTepi(): void {
+    if (viewer === null) return;
+    try {
+      viewer.setDisplayEdges(!tampilGaris);
+      setTampilGaris((v) => !v);
+    } catch {
+      /* abaikan */
+    }
+  }
+
+  function gantiLatar(): void {
+    if (viewer === null) return;
+    try {
+      if (latarGelap) {
+        viewer.setTheme("light-theme");
+        viewer.setEnvMapBackground(false);
+        viewer.setBackgroundColor(235, 235, 235, 220, 220, 220);
+      } else {
+        viewer.setTheme("dark-theme");
+        viewer.setEnvMapBackground(true);
+        viewer.setBackgroundColor(20, 28, 38, 10, 15, 25);
+      }
+      setLatarGelap((v) => !v);
+    } catch {
+      /* abaikan */
+    }
+  }
+
+  function layarPenuh(): void {
+    const wadah = penampil.containerRef.current;
+    if (!wadah) return;
+    try {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+      } else {
+        void wadah.requestFullscreen();
+      }
+    } catch {
+      /* abaikan: fullscreen opsional */
+    }
+  }
   useEffect(() => {
     setPohon([]);
     setHasilCari([]);
@@ -294,18 +349,58 @@ export default function ViewerPage(): JSX.Element {
   const pemilih: ViewableInfo[] = penampil.viewables;
   return (
     <main className="flex h-[calc(100vh-8rem)] flex-col">
-      <div className="flex items-center gap-3 border-b px-4 py-2">
-        <Link to="/models" className="text-sm text-blue-600 hover:underline">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
+        <Link
+          to="/models"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
           &larr; Kembali
         </Link>
         <h1 className="truncate text-lg font-bold">
           {modelQuery.data ? modelQuery.data.name : `Model ${id ?? ""}`}
         </h1>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={gantiProyeksi}
+            disabled={viewer === null}
+            title="Ganti proyeksi kamera"
+            className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+          >
+            {perspektif ? "Ortografik" : "Perspektif"}
+          </button>
+          <button
+            type="button"
+            onClick={gantiGarisTepi}
+            disabled={viewer === null}
+            aria-pressed={tampilGaris}
+            title="Tampil/sembunyikan garis tepi"
+            className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+          >
+            {tampilGaris ? "Shaded" : "Wireframe"}
+          </button>
+          <button
+            type="button"
+            onClick={gantiLatar}
+            disabled={viewer === null}
+            title="Ganti latar viewer"
+            className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+          >
+            {latarGelap ? "Latar terang" : "Latar gelap"}
+          </button>
+          <button
+            type="button"
+            onClick={layarPenuh}
+            disabled={!siap}
+            title="Tampilkan viewer selayar penuh"
+            className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+          >
+            Layar penuh
+          </button>
           <button
             type="button"
             onClick={() => setPanelBuka((v) => !v)}
-            className="rounded border px-3 py-1 text-sm hover:bg-slate-50"
+            className="rounded border px-3 py-1 text-sm hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
             {panelBuka ? "Sembunyikan panel" : "Tampilkan panel"}
           </button>
@@ -355,7 +450,7 @@ export default function ViewerPage(): JSX.Element {
         </section>
 
         {panelBuka && (
-          <aside className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l bg-white p-4">
+          <aside className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l bg-white p-4 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
             <section>
               <h2 className="text-sm font-semibold">Tampilan</h2>
               {pemilih.length <= 1 ? (
@@ -488,26 +583,47 @@ export default function ViewerPage(): JSX.Element {
             <section>
               <h2 className="text-sm font-semibold">Properti</h2>
               {dbIdTerpilih.length === 0 ? (
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   Belum ada objek terpilih.
                 </p>
               ) : properti.length === 0 ? (
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {namaTerpilih || `Objek #${dbIdTerpilih[0]}`} — properti tidak
                   tersedia.
                 </p>
               ) : (
-                <dl className="mt-1 max-h-64 overflow-y-auto rounded border p-2 text-sm">
-                  <dt className="font-medium">{namaTerpilih}</dt>
-                  {properti.map((p, i) => (
-                    <div key={`${p.displayName}-${i}`} className="mt-1">
-                      <dt className="text-xs text-slate-500">
-                        {p.displayCategory} · {p.displayName}
-                      </dt>
-                      <dd className="break-words">{String(p.displayValue)}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <div className="mt-1 overflow-hidden rounded border dark:border-slate-600">
+                  <p className="border-b bg-slate-50 px-2 py-1 text-sm font-medium dark:border-slate-600 dark:bg-slate-800">
+                    {namaTerpilih || `Objek #${dbIdTerpilih[0]}`}
+                  </p>
+                  <table className="max-h-64 w-full overflow-y-auto text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs uppercase text-slate-500 dark:border-slate-600 dark:text-slate-400">
+                        <th className="px-2 py-1 font-medium">Kategori</th>
+                        <th className="px-2 py-1 font-medium">Nama</th>
+                        <th className="px-2 py-1 font-medium">Nilai</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {properti.map((p, i) => (
+                        <tr
+                          key={`${p.displayCategory}-${p.displayName}-${i}`}
+                          className="border-b last:border-0 dark:border-slate-700"
+                        >
+                          <td className="px-2 py-1 align-top text-xs text-slate-500 dark:text-slate-400">
+                            {p.displayCategory}
+                          </td>
+                          <td className="px-2 py-1 align-top">
+                            {p.displayName}
+                          </td>
+                          <td className="break-words px-2 py-1 align-top">
+                            {String(p.displayValue)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </section>
           </aside>

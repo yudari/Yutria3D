@@ -86,6 +86,25 @@ function collectViewables(
   return fallback ? [fallback] : [];
 }
 
+const EKSTENSI_STANDAR: string[] = [
+  "Autodesk.Measure",
+  "Autodesk.Section",
+  "Autodesk.Explode",
+];
+
+/** Muat ekstensi standar; kegagalan non-fatal, hanya peringatan konsol. */
+function muatEkstensiStandar(viewer: ForgeViewer): void {
+  for (const id of EKSTENSI_STANDAR) {
+    try {
+      viewer.loadExtension(id).then(undefined, () => {
+        console.warn(`Ekstensi viewer ${id} gagal dimuat.`);
+      });
+    } catch {
+      console.warn(`Ekstensi viewer ${id} gagal dimuat.`);
+    }
+  }
+}
+
 function toViewableInfo(v: Autodesk.Viewing.ViewableNode): ViewableInfo {
   let role = "3d";
   if (v.data && typeof v.data === "object" && "role" in v.data) {
@@ -188,6 +207,7 @@ export function useViewer(urn: string): UseViewerResult {
           throw new Error("Viewer gagal dijalankan.");
         activeViewer = v;
         viewerRef.current = v;
+        muatEkstensiStandar(v);
         if (preferred) {
           const node =
             nodes.find((n) => n.guid() === preferred.guid) ?? null;

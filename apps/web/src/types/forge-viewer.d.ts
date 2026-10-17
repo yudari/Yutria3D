@@ -85,7 +85,10 @@ declare global {
       const Document: DocumentStatic;
 
       interface ViewerNavigation {
+        isPerspective: boolean;
         setRequestTransition(value: boolean): void;
+        toOrthographic(): void;
+        toPerspective(): void;
       }
 
       interface SearchSuccessCallback {
@@ -109,6 +112,7 @@ declare global {
       }
 
       class GuiViewer3D {
+        navigation: ViewerNavigation;
         constructor(container: HTMLElement, config?: Record<string, unknown>);
         start(): number;
         finish(): number;
@@ -117,6 +121,7 @@ declare global {
           viewable: ViewableNode,
           options?: Record<string, unknown>,
         ): Promise<unknown>;
+        loadExtension(extensionId: string): Promise<unknown>;
         addEventListener(
           eventType: string,
           listener: ViewerEventListener,
@@ -152,6 +157,17 @@ declare global {
           height?: number,
           onScreenshot?: ScreenshotCallback,
         ): string;
+        setTheme(name: string): void;
+        setBackgroundColor(
+          red: number,
+          green: number,
+          blue: number,
+          red2: number,
+          green2: number,
+          blue2: number,
+        ): void;
+        setEnvMapBackground(value: boolean): void;
+        setDisplayEdges(show: boolean): void;
       }
     }
   }
