@@ -20,14 +20,9 @@ services:
         fromDatabase:
           name: yutria3d-db
           property: connectionString
-      # WEB_ORIGIN/VITE_API_URL butuh URL lengkap, sedangkan `property: host`
-      # hanya memberi hostname — kode (Program.cs / api.ts) otomatis
-      # melengkapi skema https:// bila belum ada.
+      # WEB_ORIGIN diisi manual di dashboard setelah yutria3d-web jadi.
       - key: WEB_ORIGIN
-        fromService:
-          type: web
-          name: yutria3d-web
-          property: host
+        sync: false
       - key: APS_CLIENT_ID
         sync: false
       - key: APS_CLIENT_SECRET
@@ -39,12 +34,11 @@ services:
       - key: JWT_KEY
         generateValue: true
 
-  # --- Frontend Vite (static site) ---
+  # --- Frontend Vite (static site: type web + runtime static, tanpa plan) ---
   # VITE_API_URL dibakar ke bundle saat build, jadi diambil dari URL backend.
-  - type: static
+  - type: web
     name: yutria3d-web
     runtime: static
-    plan: free
     rootDir: apps/web
     buildCommand: pnpm install && pnpm build
     staticPublishPath: ./dist
@@ -53,16 +47,6 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      # VITE_API_URL dibakar ke bundle saat build; api.ts otomatis
-      # melengkapi skema https:// bila nilainya masih hostname polos.
+      # VITE_API_URL dibakar ke bundle saat build. Isi manual URL backend.
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: yutria3d-api
-          property: host
-
-databases:
-  - name: yutria3d-db
-    plan: free
-    databaseName: yutria3d
-    postgresMajorVersion: "16"
+        sync: false
