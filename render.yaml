@@ -41,7 +41,7 @@ services:
 
   # --- Frontend Vite (static site) ---
   # VITE_API_URL dibakar ke bundle saat build, jadi diambil dari URL backend.
-  - type: web
+  - type: static
     name: yutria3d-web
     runtime: static
     plan: free
