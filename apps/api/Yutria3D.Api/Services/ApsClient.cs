@@ -57,13 +57,13 @@ public sealed class ApsClient : IApsClient
             ? $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}&minutesExpiration=60"
             : $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?minutesExpiration=60";
         using var sign = new HttpRequestMessage(HttpMethod.Get, signUrl);
+        await AuthorizeAsync(sign, ct);
         using var signRes = await _http.SendAsync(sign, ct);
         signRes.EnsureSuccessStatusCode();
         var signed = await signRes.Content.ReadFromJsonAsync<SignedUrlsResponse>(ct)
             ?? throw new InvalidOperationException("Empty signed upload response.");
         if (signed.Urls.Length == 0 || string.IsNullOrWhiteSpace(signed.UploadKey))
             throw new InvalidOperationException("APS did not return signed upload URLs.");
-
         string[] urls = signed.Urls;
         if (urls.Length < partCount)
             throw new InvalidOperationException(
