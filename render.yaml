@@ -50,3 +50,8 @@ services:
       # VITE_API_URL dibakar ke bundle saat build. Isi manual URL backend.
       - key: VITE_API_URL
         sync: false
+databases:
+  - name: yutria3d-db
+    plan: free
+    databaseName: yutria3d
+    postgresMajorVersion: "16"
