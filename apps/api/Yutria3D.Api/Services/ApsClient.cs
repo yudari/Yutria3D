@@ -51,9 +51,12 @@ public sealed class ApsClient : IApsClient
     {
         var encodedKey = Uri.EscapeDataString(objectKey);
 
-        using var sign = new HttpRequestMessage(HttpMethod.Get,
-            $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload");
-        await AuthorizeAsync(sign, ct);
+        const int partSize = 20 * 1024 * 1024;
+        var partCount = Math.Max(1, (int)((content.Length + partSize - 1) / partSize));
+        var signUrl = partCount > 1
+            ? $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}"
+            : $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload";
+        using var sign = new HttpRequestMessage(HttpMethod.Get, signUrl);
         using var signRes = await _http.SendAsync(sign, ct);
         signRes.EnsureSuccessStatusCode();
         var signed = await signRes.Content.ReadFromJsonAsync<SignedUrlsResponse>(ct)
@@ -61,21 +64,10 @@ public sealed class ApsClient : IApsClient
         if (signed.Urls.Length == 0 || string.IsNullOrWhiteSpace(signed.UploadKey))
             throw new InvalidOperationException("APS did not return signed upload URLs.");
 
-        const int partSize = 20 * 1024 * 1024;
-        var partCount = Math.Max(1, (int)((content.Length + partSize - 1) / partSize));
         string[] urls = signed.Urls;
-        if (partCount > urls.Length)
-        {
-            // Large file: re-request enough part URLs.
-            using var signParts = new HttpRequestMessage(HttpMethod.Get,
-                $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}");
-            await AuthorizeAsync(signParts, ct);
-            using var signPartsRes = await _http.SendAsync(signParts, ct);
-            signPartsRes.EnsureSuccessStatusCode();
-            var parts = await signPartsRes.Content.ReadFromJsonAsync<SignedUrlsResponse>(ct)
-                ?? throw new InvalidOperationException("Empty signed upload response.");
-            urls = parts.Urls;
-        }
+        if (urls.Length < partCount)
+            throw new InvalidOperationException(
+                $"APS returned {urls.Length} part URLs but {partCount} are needed.");
         var buffer = new byte[partSize];
         for (var i = 0; i < partCount; i++)
         {
