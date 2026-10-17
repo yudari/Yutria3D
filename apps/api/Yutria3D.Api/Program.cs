@@ -99,6 +99,10 @@ builder.Services.AddHttpClient<IApsTokenService, ApsTokenService>();
 builder.Services.AddHttpClient<IApsClient, ApsClient>(client =>
     client.BaseAddress = new Uri("https://developer.api.autodesk.com/"))
     .AddStandardResilienceHandler();
+builder.Services.AddHttpClient("aps-s3", client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(30);
+});
 
 var webOrigin = builder.Configuration["WEB_ORIGIN"] ?? "http://localhost:5173";
 builder.Services.AddCors(options =>

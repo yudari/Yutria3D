@@ -14,13 +14,14 @@ public sealed class ApsClient : IApsClient
     private static readonly Uri DefaultBaseAddress = new("https://developer.api.autodesk.com/");
 
     private readonly HttpClient _http;
+    private readonly HttpClient _s3;
     private readonly ApsOptions _options;
     private string? _token;
     private DateTime _tokenExpiresAt;
-
-    public ApsClient(HttpClient http, IOptions<ApsOptions> options)
+    public ApsClient(HttpClient http, IHttpClientFactory httpFactory, IOptions<ApsOptions> options)
     {
         _http = http;
+        _s3 = httpFactory.CreateClient("aps-s3");
         _options = options.Value;
         if (_http.BaseAddress is null)
             _http.BaseAddress = DefaultBaseAddress;
@@ -60,20 +61,32 @@ public sealed class ApsClient : IApsClient
         if (signed.Urls.Length == 0 || string.IsNullOrWhiteSpace(signed.UploadKey))
             throw new InvalidOperationException("APS did not return signed upload URLs.");
 
-        using var body = new MemoryStream();
-        await content.CopyToAsync(body, ct);
-        var bytes = body.ToArray();
-
-        var partSize = (bytes.Length + signed.Urls.Length - 1) / signed.Urls.Length;
-        for (var i = 0; i < signed.Urls.Length; i++)
+        const int partSize = 20 * 1024 * 1024;
+        var partCount = Math.Max(1, (int)((content.Length + partSize - 1) / partSize));
+        string[] urls = signed.Urls;
+        if (partCount > urls.Length)
         {
-            var chunk = bytes.AsMemory(i * partSize, Math.Min(partSize, bytes.Length - (i * partSize)));
-            using var put = new HttpRequestMessage(HttpMethod.Put, signed.Urls[i])
+            // Large file: re-request enough part URLs.
+            using var signParts = new HttpRequestMessage(HttpMethod.Get,
+                $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}");
+            await AuthorizeAsync(signParts, ct);
+            using var signPartsRes = await _http.SendAsync(signParts, ct);
+            signPartsRes.EnsureSuccessStatusCode();
+            var parts = await signPartsRes.Content.ReadFromJsonAsync<SignedUrlsResponse>(ct)
+                ?? throw new InvalidOperationException("Empty signed upload response.");
+            urls = parts.Urls;
+        }
+        var buffer = new byte[partSize];
+        for (var i = 0; i < partCount; i++)
+        {
+            content.Position = (long)i * partSize;
+            var read = await content.ReadAsync(buffer.AsMemory(), ct);
+            using var put = new HttpRequestMessage(HttpMethod.Put, urls[i])
             {
-                Content = new ByteArrayContent(chunk.ToArray()),
+                Content = new ByteArrayContent(buffer, 0, read),
             };
             put.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-            using var putRes = await _http.SendAsync(put, ct);
+            using var putRes = await _s3.SendAsync(put, HttpCompletionOption.ResponseHeadersRead, ct);
             putRes.EnsureSuccessStatusCode();
         }
 
