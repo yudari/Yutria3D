@@ -4,23 +4,74 @@ import { Link } from "react-router-dom";
 import {
   deleteModel,
   fetchModels,
+  fetchStatus,
   uploadModel,
   type ModelDto,
+  type StatusDto,
 } from "../lib/api";
+
+interface ModelTampil extends ModelDto {
+  failureMessage?: string | null;
+}
+
+const STATUS_AKTIF = ["pending", "inprogress", "in_progress", "processing"];
+
+/** Daftar model + status translation live dari APS untuk yang masih aktif. */
+async function fetchModelsWithStatus(): Promise<ModelTampil[]> {
+  const list = await fetchModels();
+  const aktif = list.filter((m) => STATUS_AKTIF.includes(m.status.toLowerCase()));
+  if (aktif.length === 0) return list;
+  const hasil = await Promise.all(
+    aktif.map((m) =>
+      fetchStatus(m.id)
+        .then((s): { id: string; s: StatusDto } => ({ id: m.id, s }))
+        .catch((): null => null),
+    ),
+  );
+  const peta: Record<string, StatusDto> = {};
+  for (const h of hasil) {
+    if (h !== null) peta[h.id] = h.s;
+  }
+  return list.map((m) => {
+    const s = peta[m.id];
+    return s
+      ? { ...m, status: s.status, progress: s.progress, failureMessage: s.failureMessage }
+      : m;
+  });
+}
+
+function labelStatus(status: string): string {
+  switch (status.toLowerCase()) {
+    case "success":
+      return "Siap";
+    case "failed":
+      return "Gagal";
+    case "timeout":
+      return "Kedaluwarsa";
+    case "pending":
+      return "Menunggu antrean";
+    case "inprogress":
+    case "in_progress":
+    case "processing":
+      return "Menerjemahkan";
+    default:
+      return status;
+  }
+}
 
 function StatusBadge({ status }: { status: string }): JSX.Element {
   const s = status.toLowerCase();
   const color =
     s === "success"
       ? "bg-green-100 text-green-800"
-      : s === "failed" || s === "error"
+      : s === "failed" || s === "error" || s === "timeout"
         ? "bg-red-100 text-red-800"
         : s === "pending"
           ? "bg-yellow-100 text-yellow-800"
           : "bg-blue-100 text-blue-800";
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
-      {status}
+      {labelStatus(status)}
     </span>
   );
 }
@@ -84,18 +135,15 @@ export default function ModelsPage(): JSX.Element {
 
   function tampilToast(pesan: string, jenis: Toast["jenis"]): void {
     setToast({ pesan, jenis });
-    window.setTimeout(() => setToast(null), 4000);
+    window.setTimeout(() => setToast(null), 6000);
   }
 
   const modelsQuery = useQuery({
     queryKey: ["models"],
-    queryFn: fetchModels,
+    queryFn: fetchModelsWithStatus,
     refetchInterval: (query) => {
-      const data = query.state.data as ModelDto[] | undefined;
-      const adaAktif = data?.some((m) => {
-        const s = m.status.toLowerCase();
-        return s === "pending" || s === "inprogress" || s === "in_progress" || s === "processing";
-      });
+      const data = query.state.data as ModelTampil[] | undefined;
+      const adaAktif = data?.some((m) => STATUS_AKTIF.includes(m.status.toLowerCase()));
       return adaAktif ? 5000 : false;
     },
   });
@@ -109,7 +157,7 @@ export default function ModelsPage(): JSX.Element {
     },
     onSuccess: () => {
       setProgress(null);
-      tampilToast("Unggahan berhasil.", "sukses");
+      tampilToast("File terkirim ke Autodesk. Menerjemahkan model…", "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
@@ -153,7 +201,7 @@ export default function ModelsPage(): JSX.Element {
         {progress !== null && (
           <div className="mt-3">
             <p className="text-sm text-slate-600">
-              Mengunggah {namaUnggah}… {progress}%
+              Tahap 1/2 — Mengunggah {namaUnggah}… {progress}%
             </p>
             <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
               <div
@@ -188,40 +236,65 @@ export default function ModelsPage(): JSX.Element {
         )}
         {modelsQuery.isSuccess && models.length > 0 && (
           <ul className="space-y-3">
-            {models.map((m) => (
-              <li
-                key={m.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded border p-4"
-              >
-                <div>
-                  {m.status.toLowerCase() === "success" ? (
-                    <Link
-                      to={`/models/${m.id}`}
-                      className="font-medium text-blue-600 hover:underline"
+            {models.map((m) => {
+              const aktif = STATUS_AKTIF.includes(m.status.toLowerCase());
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded border p-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    {m.status.toLowerCase() === "success" ? (
+                      <Link
+                        to={`/models/${m.id}`}
+                        className="font-medium text-blue-600 hover:underline"
+                      >
+                        {m.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{m.name}</span>
+                    )}
+                    <p className="mt-1 text-sm text-slate-500">
+                      {(m.sizeBytes / 1024 / 1024).toFixed(2)} MB ·{" "}
+                      {new Date(m.createdAt).toLocaleString("id-ID")}
+                    </p>
+                    {aktif && (
+                      <div className="mt-2 max-w-md">
+                        <p className="text-sm text-slate-600">
+                          Tahap 2/2 — Menerjemahkan di Autodesk… {m.progress}%
+                        </p>
+                        <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
+                          <div
+                            className="h-full bg-green-600 transition-all"
+                            style={{ width: `${m.progress}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">
+                          File besar bisa memakan waktu 10–30 menit. Halaman ini
+                          memantau otomatis.
+                        </p>
+                      </div>
+                    )}
+                    {m.status.toLowerCase() === "failed" && m.failureMessage && (
+                      <p className="mt-1 max-w-md truncate text-sm text-red-600" title={m.failureMessage}>
+                        {m.failureMessage}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={m.status} />
+                    <button
+                      type="button"
+                      onClick={() => handleHapus(m)}
+                      disabled={hapusMutation.isPending}
+                      className="rounded border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
                     >
-                      {m.name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{m.name}</span>
-                  )}
-                  <p className="mt-1 text-sm text-slate-500">
-                    {(m.sizeBytes / 1024 / 1024).toFixed(2)} MB ·{" "}
-                    {new Date(m.createdAt).toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={m.status} />
-                  <button
-                    type="button"
-                    onClick={() => handleHapus(m)}
-                    disabled={hapusMutation.isPending}
-                    className="rounded border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Hapus
-                  </button>
-                </div>
-              </li>
-            ))}
+                      Hapus
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -229,7 +302,7 @@ export default function ModelsPage(): JSX.Element {
       {toast && (
         <div
           role="status"
-          className={`fixed bottom-6 right-6 rounded px-4 py-2 text-sm text-white shadow ${
+          className={`fixed bottom-6 right-6 max-w-sm rounded px-4 py-2 text-sm text-white shadow ${
             toast.jenis === "sukses" ? "bg-green-700" : "bg-red-700"
           }`}
         >
