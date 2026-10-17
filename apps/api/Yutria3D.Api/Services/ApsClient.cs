@@ -54,8 +54,8 @@ public sealed class ApsClient : IApsClient
         const int partSize = 20 * 1024 * 1024;
         var partCount = Math.Max(1, (int)((content.Length + partSize - 1) / partSize));
         var signUrl = partCount > 1
-            ? $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}"
-            : $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload";
+            ? $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?parts={partCount}&minutesExpiration=60"
+            : $"oss/v2/buckets/{bucketKey}/objects/{encodedKey}/signeds3upload?minutesExpiration=60";
         using var sign = new HttpRequestMessage(HttpMethod.Get, signUrl);
         using var signRes = await _http.SendAsync(sign, ct);
         signRes.EnsureSuccessStatusCode();
