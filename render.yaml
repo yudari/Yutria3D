@@ -39,9 +39,9 @@ services:
   - type: web
     name: yutria3d-web
     runtime: static
-    rootDir: apps/web
-    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install && pnpm build
-    staticPublishPath: ./dist
+    rootDir: .
+    buildCommand: corepack enable && corepack prepare pnpm@9.12.0 --activate && pnpm install && pnpm --filter @yutria3d/web build
+    staticPublishPath: ./apps/web/dist
     routes:
       - type: rewrite # SPA fallback agar React Router tetap jalan di refresh/deep link.
         source: /*
