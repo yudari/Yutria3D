@@ -437,8 +437,15 @@ export default function ViewerPage(): JSX.Element {
             </div>
           )}
           {siap && penampil.error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-200">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-slate-200">
               <p>{penampil.error}</p>
+              <button
+                type="button"
+                onClick={penampil.reload}
+                className="rounded border border-slate-500 px-4 py-1.5 text-sm hover:bg-slate-800"
+              >
+                Muat ulang
+              </button>
             </div>
           )}
           {siap && penampil.loading && !penampil.error && (

@@ -55,8 +55,12 @@ function loadViewerAssets(): Promise<void> {
   return viewerAssetsPromise;
 }
 
+/** Initializer sekali per sesi; pemanggilan ulang tidak mengulang handshake token. */
+let viewerInitPromise: Promise<void> | null = null;
+
 function initializeViewer(): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
+  if (viewerInitPromise) return viewerInitPromise;
+  viewerInitPromise = new Promise<void>((resolve, reject) => {
     try {
       window.Autodesk?.Viewing.Initializer(
         {
@@ -71,9 +75,11 @@ function initializeViewer(): Promise<void> {
         () => resolve(),
       );
     } catch (err) {
+      viewerInitPromise = null;
       reject(err instanceof Error ? err : new Error("Inisialisasi gagal."));
     }
   });
+  return viewerInitPromise;
 }
 
 function collectViewables(
@@ -114,6 +120,16 @@ function toViewableInfo(v: Autodesk.Viewing.ViewableNode): ViewableInfo {
   return { guid: v.guid(), name: v.name() ?? v.guid(), role };
 }
 
+/** Pesan galat Autodesk yang ramah untuk pengguna. */
+function pesanGalatMuat(kode: number, pesan: string): string {
+  if (kode === 404)
+    return "File 3D belum tersedia di Autodesk atau tautannya kedaluwarsa. Coba Muat ulang; bila tetap, unggah ulang file.";
+  if (kode === 401 || kode === 403)
+    return "Sesi tampilan kedaluwarsa. Coba Muat ulang.";
+  if (pesan.length > 0) return `Gagal memuat file 3D: ${pesan}`;
+  return "Gagal memuat file 3D.";
+}
+
 export interface UseViewerResult {
   containerRef: React.RefObject<HTMLDivElement>;
   viewer: ForgeViewer | null;
@@ -121,6 +137,7 @@ export interface UseViewerResult {
   currentGuid: string | null;
   loading: boolean;
   error: string | null;
+  reload: () => void;
   selectView: (guid: string) => void;
 }
 
@@ -135,6 +152,9 @@ export function useViewer(urn: string): UseViewerResult {
   const [currentGuid, setCurrentGuid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [upaya, setUpaya] = useState(0);
+
+  const reload = useCallback(() => setUpaya((u) => u + 1), []);
 
   const selectView = useCallback((guid: string) => {
     const v = viewerRef.current;
@@ -159,6 +179,12 @@ export function useViewer(urn: string): UseViewerResult {
   }, []);
 
   useEffect(() => {
+    if (urn.length === 0) {
+      // Belum ada URN (data model masih dimuat): jangan sentuh Autodesk sama sekali.
+      setLoading(true);
+      setError(null);
+      return;
+    }
     cancelledRef.current = false;
     setLoading(true);
     setError(null);
@@ -184,8 +210,8 @@ export function useViewer(urn: string): UseViewerResult {
             AutodeskNs.Document.load(
               urn.startsWith("urn:") ? urn : `urn:${urn}`,
               (doc) => resolve(doc),
-              (_code, msg) =>
-                reject(new Error(msg || "Gagal memuat dokumen.")),
+              (kode, msg) =>
+                reject(new Error(pesanGalatMuat(kode, msg ?? ""))),
             );
           }),
       )
@@ -254,7 +280,7 @@ export function useViewer(urn: string): UseViewerResult {
       const container = containerRef.current;
       if (container) container.innerHTML = "";
     };
-  }, [urn]);
+  }, [urn, upaya]);
 
   return {
     containerRef,
@@ -263,6 +289,7 @@ export function useViewer(urn: string): UseViewerResult {
     currentGuid,
     loading,
     error,
+    reload,
     selectView,
   };
 }
