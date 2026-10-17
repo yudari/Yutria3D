@@ -10,7 +10,7 @@ export interface ViewableInfo {
 }
 
 const VIEWER_BASE =
-  "https://developer.api.autodesk.com/modelderivative/v2/viewers/7";
+  "https://developer.api.autodesk.com/modelderivative/v2/viewers/7.120";
 const VIEWER_CSS = `${VIEWER_BASE}/style.min.css`;
 const VIEWER_JS = `${VIEWER_BASE}/viewer3D.min.js`;
 
