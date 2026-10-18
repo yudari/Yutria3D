@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchViewerToken } from "../lib/api";
+import {
+  bacaBahasa,
+  format,
+  strings,
+  type KunciTeks,
+} from "../i18n/translations";
+
+function tv(k: KunciTeks): string {
+  try {
+    return strings[bacaBahasa()][k];
+  } catch {
+    return strings.id[k];
+  }
+}
 
 export type ForgeViewer = Autodesk.Viewing.GuiViewer3D;
 
@@ -39,7 +53,7 @@ function loadViewerAssets(): Promise<void> {
       existing.addEventListener("load", () => resolve(), { once: true });
       existing.addEventListener(
         "error",
-        () => reject(new Error("Gagal memuat APS Viewer.")),
+        () => reject(new Error(tv("viewerAsetGagal"))),
         { once: true },
       );
       return;
@@ -49,7 +63,7 @@ function loadViewerAssets(): Promise<void> {
     script.async = true;
     script.dataset.forgeViewer = "js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Gagal memuat APS Viewer."));
+    script.onerror = () => reject(new Error(tv("viewerAsetGagal")));
     document.body.appendChild(script);
   });
   return viewerAssetsPromise;
@@ -76,7 +90,7 @@ function initializeViewer(): Promise<void> {
       );
     } catch (err) {
       viewerInitPromise = null;
-      reject(err instanceof Error ? err : new Error("Inisialisasi gagal."));
+      reject(err instanceof Error ? err : new Error(tv("viewerInisialGagal")));
     }
   });
   return viewerInitPromise;
@@ -122,12 +136,10 @@ function toViewableInfo(v: Autodesk.Viewing.ViewableNode): ViewableInfo {
 
 /** Pesan galat Autodesk yang ramah untuk pengguna. */
 function pesanGalatMuat(kode: number, pesan: string): string {
-  if (kode === 404)
-    return "File 3D belum tersedia di Autodesk atau tautannya kedaluwarsa. Coba Muat ulang; bila tetap, unggah ulang file.";
-  if (kode === 401 || kode === 403)
-    return "Sesi tampilan kedaluwarsa. Coba Muat ulang.";
-  if (pesan.length > 0) return `Gagal memuat file 3D: ${pesan}`;
-  return "Gagal memuat file 3D.";
+  if (kode === 404) return tv("viewerBelumAda");
+  if (kode === 401 || kode === 403) return tv("viewerSesiKedaluwarsa");
+  if (pesan.length > 0) return format(tv("viewerGagalPrefiks"), { pesan });
+  return tv("viewerGagalUmum");
 }
 
 export interface UseViewerResult {
@@ -172,7 +184,7 @@ export function useViewer(urn: string): UseViewerResult {
       })
       .catch(() => {
         if (!cancelledRef.current) {
-          setError("Gagal memuat tampilan.");
+          setError(tv("viewerTampilanGagal"));
           setLoading(false);
         }
       });
@@ -204,7 +216,7 @@ export function useViewer(urn: string): UseViewerResult {
           new Promise<Autodesk.Viewing.ForgeDocument>((resolve, reject) => {
             const AutodeskNs = window.Autodesk?.Viewing;
             if (!AutodeskNs) {
-              reject(new Error("APS Viewer tidak tersedia."));
+              reject(new Error(tv("viewerTakTersedia")));
               return;
             }
             AutodeskNs.Document.load(
@@ -218,7 +230,7 @@ export function useViewer(urn: string): UseViewerResult {
       .then((doc) => {
         if (cancelledRef.current) return;
         const container = containerRef.current;
-        if (!container) throw new Error("Kontainer viewer tidak tersedia.");
+        if (!container) throw new Error(tv("viewerKontainerTakAda"));
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const AutodeskNs = window.Autodesk!.Viewing;
         docRef.current = doc;
@@ -229,8 +241,7 @@ export function useViewer(urn: string): UseViewerResult {
           infos.find((i) => i.role === "3d") ?? infos[0] ?? null;
         const v = new AutodeskNs.GuiViewer3D(container);
         const started = v.start();
-        if (started !== 0)
-          throw new Error("Viewer gagal dijalankan.");
+        if (started !== 0) throw new Error(tv("viewerStartGagal"));
         activeViewer = v;
         viewerRef.current = v;
         muatEkstensiStandar(v);
@@ -259,7 +270,7 @@ export function useViewer(urn: string): UseViewerResult {
       .catch((err: unknown) => {
         if (cancelledRef.current) return;
         setError(
-          err instanceof Error ? err.message : "Viewer gagal dimuat.",
+          err instanceof Error ? err.message : tv("viewerGagalDimuat"),
         );
         setLoading(false);
       });

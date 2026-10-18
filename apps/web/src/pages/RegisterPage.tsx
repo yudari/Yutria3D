@@ -3,10 +3,12 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, register } from "../lib/api";
 import { useAuthStore } from "../store/auth";
+import { useT } from "../store/bahasa";
 
 export default function RegisterPage(): JSX.Element {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const t = useT();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,15 +20,15 @@ export default function RegisterPage(): JSX.Element {
     e.preventDefault();
     setError(null);
     if (!email.trim() || !password) {
-      setError("Email dan kata sandi wajib diisi.");
+      setError(t("daftarButuh"));
       return;
     }
     if (password.length < 8) {
-      setError("Kata sandi minimal 8 karakter.");
+      setError(t("daftarMin"));
       return;
     }
     if (password !== confirm) {
-      setError("Konfirmasi kata sandi tidak cocok.");
+      setError(t("daftarTakCocok"));
       return;
     }
     setPending(true);
@@ -36,7 +38,7 @@ export default function RegisterPage(): JSX.Element {
       navigate("/models", { replace: true });
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
-      else setError("Terjadi kesalahan. Silakan coba lagi.");
+      else setError(t("daftarGalatUmum"));
     } finally {
       setPending(false);
     }
@@ -44,9 +46,9 @@ export default function RegisterPage(): JSX.Element {
 
   return (
     <main className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-2xl font-bold">Daftar</h1>
+      <h1 className="text-2xl font-bold">{t("daftarJudul")}</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Buat akun untuk mulai mengelola file 3D.
+        {t("daftarDeskripsi")}
       </p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div>
@@ -67,7 +69,7 @@ export default function RegisterPage(): JSX.Element {
             htmlFor="register-password"
             className="block text-sm font-medium"
           >
-            Kata sandi
+            {t("daftarKataSandi")}
           </label>
           <input
             id="register-password"
@@ -83,7 +85,7 @@ export default function RegisterPage(): JSX.Element {
             htmlFor="register-confirm"
             className="block text-sm font-medium"
           >
-            Konfirmasi kata sandi
+            {t("daftarKonfirmasi")}
           </label>
           <input
             id="register-confirm"
@@ -104,13 +106,13 @@ export default function RegisterPage(): JSX.Element {
           disabled={pending}
           className="w-full rounded bg-slate-900 px-4 py-2 text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {pending ? "Memproses…" : "Daftar"}
+          {pending ? t("daftarMemproses") : t("daftarJudul")}
         </button>
       </form>
       <p className="mt-4 text-sm text-slate-600">
-        Sudah punya akun?{" "}
+        {t("daftarSudah")}{" "}
         <Link to="/login" className="text-blue-600 hover:underline">
-          Masuk
+          {t("daftarMasuk")}
         </Link>
       </p>
     </main>

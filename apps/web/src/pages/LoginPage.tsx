@@ -3,11 +3,13 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, login } from "../lib/api";
 import { useAuthStore } from "../store/auth";
+import { useT } from "../store/bahasa";
 
 export default function LoginPage(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const t = useT();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,7 +20,7 @@ export default function LoginPage(): JSX.Element {
     e.preventDefault();
     setError(null);
     if (!email.trim() || !password) {
-      setError("Email dan kata sandi wajib diisi.");
+      setError(t("loginButuh"));
       return;
     }
     setPending(true);
@@ -35,7 +37,7 @@ export default function LoginPage(): JSX.Element {
       navigate(from, { replace: true });
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
-      else setError("Terjadi kesalahan. Silakan coba lagi.");
+      else setError(t("loginGalatUmum"));
     } finally {
       setPending(false);
     }
@@ -43,9 +45,9 @@ export default function LoginPage(): JSX.Element {
 
   return (
     <main className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-2xl font-bold">Masuk</h1>
+      <h1 className="text-2xl font-bold">{t("loginJudul")}</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Masuk untuk mengelola file 3D Anda.
+        {t("loginDeskripsi")}
       </p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div>
@@ -63,7 +65,7 @@ export default function LoginPage(): JSX.Element {
         </div>
         <div>
           <label htmlFor="login-password" className="block text-sm font-medium">
-            Kata sandi
+            {t("loginKataSandi")}
           </label>
           <input
             id="login-password"
@@ -84,13 +86,13 @@ export default function LoginPage(): JSX.Element {
           disabled={pending}
           className="w-full rounded bg-slate-900 px-4 py-2 text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {pending ? "Memproses…" : "Masuk"}
+          {pending ? t("loginMemproses") : t("loginJudul")}
         </button>
       </form>
       <p className="mt-4 text-sm text-slate-600">
-        Belum punya akun?{" "}
+        {t("loginBelum")}{" "}
         <Link to="/register" className="text-blue-600 hover:underline">
-          Daftar
+          {t("loginDaftar")}
         </Link>
       </p>
     </main>

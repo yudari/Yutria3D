@@ -1,3 +1,18 @@
+import {
+  bacaBahasa,
+  format,
+  strings,
+  type KunciTeks,
+} from "../i18n/translations";
+
+function t(k: KunciTeks): string {
+  try {
+    return strings[bacaBahasa()][k];
+  } catch {
+    return strings.id[k];
+  }
+}
+
 function normalizeApiUrl(raw: string | undefined): string {
   const fallback = "http://localhost:5000";
   const value = (raw ?? "").trim() || fallback;
@@ -108,10 +123,10 @@ export async function register(
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Pendaftaran gagal"),
+      await errorMessage(res, t("apiDaftarGagal")),
     );
   const token = readAuthToken(await res.json());
-  if (!token) throw new ApiError(res.status, "Respons server tidak valid.");
+  if (!token) throw new ApiError(res.status, t("apiResponsTakValid"));
   return token;
 }
 
@@ -123,38 +138,38 @@ export async function login(email: string, password: string): Promise<string> {
   });
   if (!res.ok) {
     if (res.status === 401)
-      throw new ApiError(res.status, "Email atau kata sandi salah.");
-    throw new ApiError(res.status, await errorMessage(res, "Masuk gagal"));
+      throw new ApiError(res.status, t("apiKredensialSalah"));
+    throw new ApiError(res.status, await errorMessage(res, t("apiMasukGagal")));
   }
   const token = readAuthToken(await res.json());
-  if (!token) throw new ApiError(res.status, "Respons server tidak valid.");
+  if (!token) throw new ApiError(res.status, t("apiResponsTakValid"));
   return token;
 }
 
 export async function fetchModels(): Promise<ModelDto[]> {
   const res = await authFetch("/api/models");
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat daftar file 3D"),
+      await errorMessage(res, t("apiDaftarGagalMuat")),
     );
   const data: unknown = await res.json();
   if (!Array.isArray(data))
-    throw new ApiError(res.status, "Respons server tidak valid.");
+    throw new ApiError(res.status, t("apiResponsTakValid"));
   return data as ModelDto[];
 }
 
 export async function fetchModelById(id: string): Promise<ModelDetailDto> {
   const res = await authFetch(`/api/models/${id}`);
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
+  if (res.status === 404) throw new ApiError(404, t("apiTakDitemukan"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat detail file 3D"),
+      await errorMessage(res, t("apiDetailGagal")),
     );
   return (await res.json()) as ModelDetailDto;
 }
@@ -162,12 +177,12 @@ export async function fetchModelById(id: string): Promise<ModelDetailDto> {
 export async function fetchStatus(id: string): Promise<StatusDto> {
   const res = await authFetch(`/api/models/${id}/status`);
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
+  if (res.status === 404) throw new ApiError(404, t("apiTakDitemukan"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat status file 3D"),
+      await errorMessage(res, t("apiStatusGagal")),
     );
   return (await res.json()) as StatusDto;
 }
@@ -175,12 +190,12 @@ export async function fetchStatus(id: string): Promise<StatusDto> {
 export async function deleteModel(id: string): Promise<void> {
   const res = await authFetch(`/api/models/${id}`, { method: "DELETE" });
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
-  if (res.status === 404) throw new ApiError(404, "File 3D tidak ditemukan.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
+  if (res.status === 404) throw new ApiError(404, t("apiTakDitemukan"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal menghapus file 3D"),
+      await errorMessage(res, t("apiHapusGagal")),
     );
 }
 
@@ -188,13 +203,13 @@ export async function deleteModel(id: string): Promise<void> {
 export async function uploadSample(): Promise<ModelDetailDto> {
   const res = await authFetch("/api/models/sample", { method: "POST" });
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
   if (res.status === 404)
-    throw new ApiError(404, "File contoh tidak tersedia di server.");
+    throw new ApiError(404, t("apiContohTakAda"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal memuat file contoh"),
+      await errorMessage(res, t("apiContohGagal")),
     );
   return (await res.json()) as ModelDetailDto;
 }
@@ -224,7 +239,7 @@ export function uploadModel(
         return;
       }
       if (xhr.status === 401) {
-        reject(new ApiError(401, "Sesi berakhir. Silakan masuk kembali."));
+        reject(new ApiError(401, t("apiSesiBerakhir")));
         return;
       }
       const body: unknown = xhr.response;
@@ -234,14 +249,12 @@ export function uploadModel(
         "error" in body &&
         typeof body.error === "string"
           ? body.error
-          : `Unggah gagal (kode ${xhr.status})`;
+          : format(t("apiUnggahGagal"), { kode: xhr.status });
       reject(new ApiError(xhr.status, msg));
     };
 
     xhr.onerror = () => {
-      reject(
-        new ApiError(0, "Tidak dapat terhubung ke server. Periksa koneksi Anda."),
-      );
+      reject(new ApiError(0, t("apiTakTerhubung")));
     };
 
     const form = new FormData();
@@ -254,15 +267,15 @@ export function uploadModel(
 export async function fetchViewerToken(): Promise<ViewerTokenResponse> {
   const res = await authFetch("/api/auth/token");
   if (res.status === 401)
-    throw new ApiError(401, "Sesi berakhir. Silakan masuk kembali.");
+    throw new ApiError(401, t("apiSesiBerakhir"));
   if (!res.ok)
     throw new ApiError(
       res.status,
-      await errorMessage(res, "Gagal mendapatkan token viewer"),
+      await errorMessage(res, t("apiTokenGagal")),
     );
   const data: unknown = await res.json();
   if (typeof data !== "object" || data === null)
-    throw new ApiError(res.status, "Respons server tidak valid.");
+    throw new ApiError(res.status, t("apiResponsTakValid"));
   const accessToken =
     "accessToken" in data && typeof data.accessToken === "string"
       ? data.accessToken
@@ -276,7 +289,7 @@ export async function fetchViewerToken(): Promise<ViewerTokenResponse> {
         ? data.ExpiresIn
         : null;
   if (accessToken === null || expiresIn === null)
-    throw new ApiError(res.status, "Respons server tidak valid.");
+    throw new ApiError(res.status, t("apiResponsTakValid"));
   return { accessToken, expiresIn };
 }
 
@@ -290,7 +303,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
     !("status" in data) ||
     typeof data.status !== "string"
   ) {
-    throw new Error("Respons health check tidak valid.");
+    throw new Error(t("apiResponsTakValid"));
   }
   return { status: data.status };
 }

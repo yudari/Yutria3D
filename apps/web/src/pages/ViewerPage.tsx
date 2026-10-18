@@ -5,6 +5,8 @@ import { fetchModelById } from "../lib/api";
 import { useViewer, type ForgeViewer, type ViewableInfo } from "../hooks/useViewer";
 import { useSelection } from "../hooks/useSelection";
 import { useViewerStore } from "../store/viewer";
+import { strings, type KunciTeks } from "../i18n/translations";
+import { useBahasaStore } from "../store/bahasa";
 
 interface SimpulPohon {
   dbId: number;
@@ -52,6 +54,8 @@ function BarisSimpul({
 }): JSX.Element {
   const [buka, setBuka] = useState<boolean>(level < 1);
   const punyaAnak = simpul.anak.length > 0;
+  const bahasa = useBahasaStore((s) => s.bahasa);
+  const t = (k: KunciTeks): string => strings[bahasa][k];
 
   function pilih(): void {
     if (viewer === null) return;
@@ -71,7 +75,7 @@ function BarisSimpul({
             type="button"
             onClick={() => setBuka((v) => !v)}
             className="w-5 shrink-0 text-slate-500"
-            aria-label={buka ? "Tutup" : "Buka"}
+            aria-label={buka ? t("viewerTutup") : t("viewerBuka")}
           >
             {buka ? "▾" : "▸"}
           </button>
@@ -99,19 +103,26 @@ function BarisSimpul({
 }
 
 function labelStatus(status: string): string {
+  let bahasa: "id" | "en" = "id";
+  try {
+    bahasa = window.localStorage.getItem("yutria3d-bahasa") === "en" ? "en" : "id";
+  } catch {
+    bahasa = "id";
+  }
+  const t = (k: KunciTeks): string => strings[bahasa][k];
   switch (status.toLowerCase()) {
     case "success":
-      return "Siap";
+      return t("statusSiap");
     case "failed":
-      return "Gagal";
+      return t("statusGagal");
     case "timeout":
-      return "Kedaluwarsa";
+      return t("statusKedaluwarsa");
     case "pending":
-      return "Menunggu antrean";
+      return t("statusAntre");
     case "inprogress":
     case "in_progress":
     case "processing":
-      return "Menerjemahkan";
+      return t("statusTerjemah");
     default:
       return status;
   }
@@ -120,6 +131,8 @@ function labelStatus(status: string): string {
 export default function ViewerPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const setLastModelId = useViewerStore((s) => s.setLastModelId);
+  const bahasa = useBahasaStore((s) => s.bahasa);
+  const t = (k: KunciTeks): string => strings[bahasa][k];
 
   const modelQuery = useQuery({
     queryKey: ["model", id],
@@ -225,7 +238,7 @@ export default function ViewerPage(): JSX.Element {
         (tree) => {
           if (batal) return;
           let akar = 0;
-          let namaAkar = "File 3D";
+          let namaAkar = t("viewerAkar");
           try {
             akar = tree.getRootId();
             namaAkar = tree.getNodeName(akar);
@@ -244,6 +257,7 @@ export default function ViewerPage(): JSX.Element {
     return () => {
       batal = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer]);
 
   useEffect(() => {
@@ -354,7 +368,7 @@ export default function ViewerPage(): JSX.Element {
           to="/models"
           className="text-sm text-blue-600 hover:underline dark:text-blue-400"
         >
-          &larr; Kembali
+          {t("viewerKembali")}
         </Link>
         <h1 className="truncate text-lg font-bold">
           {modelQuery.data ? modelQuery.data.name : (id ?? "")}
@@ -364,17 +378,17 @@ export default function ViewerPage(): JSX.Element {
             type="button"
             onClick={gantiProyeksi}
             disabled={viewer === null}
-            title="Ganti proyeksi kamera"
+            title={t("viewerGantiProyeksi")}
             className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
-            {perspektif ? "Ortografik" : "Perspektif"}
+            {perspektif ? t("viewerOrtografik") : t("viewerPerspektif")}
           </button>
           <button
             type="button"
             onClick={gantiGarisTepi}
             disabled={viewer === null}
             aria-pressed={tampilGaris}
-            title="Tampil/sembunyikan garis tepi"
+            title={t("viewerGaris")}
             className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
             {tampilGaris ? "Shaded" : "Wireframe"}
@@ -383,26 +397,26 @@ export default function ViewerPage(): JSX.Element {
             type="button"
             onClick={gantiLatar}
             disabled={viewer === null}
-            title="Ganti latar viewer"
+            title={t("viewerLatar")}
             className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
-            {latarGelap ? "Latar terang" : "Latar gelap"}
+            {latarGelap ? t("viewerLatarTerang") : t("viewerLatarGelap")}
           </button>
           <button
             type="button"
             onClick={layarPenuh}
             disabled={!siap}
-            title="Tampilkan viewer selayar penuh"
+            title={t("viewerPenuhJudul")}
             className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
-            Layar penuh
+            {t("viewerPenuh")}
           </button>
           <button
             type="button"
             onClick={() => setPanelBuka((v) => !v)}
             className="rounded border px-3 py-1 text-sm hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
           >
-            {panelBuka ? "Sembunyikan panel" : "Tampilkan panel"}
+            {panelBuka ? t("viewerSembunyiPanel") : t("viewerTampilPanel")}
           </button>
         </div>
       </div>
@@ -411,14 +425,14 @@ export default function ViewerPage(): JSX.Element {
         <section className="relative min-w-0 flex-1 bg-slate-900">
           {modelQuery.isLoading && (
             <p className="absolute inset-0 flex items-center justify-center text-slate-200">
-              Memuat info file 3D…
+              {t("viewerMemuatInfo")}
             </p>
           )}
           {modelQuery.isError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-200">
-              <p>Gagal memuat file 3D.</p>
+              <p>{t("viewerGagalMuat")}</p>
               <Link to="/models" className="text-sm text-blue-300 hover:underline">
-                Kembali ke File 3D
+                {t("viewerKembaliKe")}
               </Link>
             </div>
           )}
@@ -429,10 +443,10 @@ export default function ViewerPage(): JSX.Element {
                 {modelQuery.data.progress}%)
               </p>
               <p className="text-sm text-slate-400">
-                File 3D masih diterjemahkan. Halaman memuat ulang otomatis.
+                {t("viewerMasihTerjemah")}
               </p>
               <Link to="/models" className="text-sm text-blue-300 hover:underline">
-                Kembali ke File 3D
+                {t("viewerKembaliKe")}
               </Link>
             </div>
           )}
@@ -444,13 +458,13 @@ export default function ViewerPage(): JSX.Element {
                 onClick={penampil.reload}
                 className="rounded border border-slate-500 px-4 py-1.5 text-sm hover:bg-slate-800"
               >
-                Muat ulang
+                {t("viewerMuatUlang")}
               </button>
             </div>
           )}
           {siap && penampil.loading && !penampil.error && (
             <p className="pointer-events-none absolute inset-x-0 top-2 text-center text-sm text-slate-200">
-              Memuat viewer…
+              {t("viewerMemuatViewer")}
             </p>
           )}
           {siap && <div ref={penampil.containerRef} className="h-full w-full" />}
@@ -459,10 +473,10 @@ export default function ViewerPage(): JSX.Element {
         {panelBuka && (
           <aside className="flex w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l bg-white p-4 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
             <section>
-              <h2 className="text-sm font-semibold">Tampilan</h2>
+              <h2 className="text-sm font-semibold">{t("viewerTampilan")}</h2>
               {pemilih.length <= 1 ? (
                 <p className="mt-1 text-sm text-slate-500">
-                  {pemilih[0] ? pemilih[0].name : "Satu tampilan tersedia."}
+                  {pemilih[0] ? pemilih[0].name : t("viewerSatuTampilan")}
                 </p>
               ) : (
                 <select
@@ -480,7 +494,7 @@ export default function ViewerPage(): JSX.Element {
             </section>
 
             <section>
-              <h2 className="text-sm font-semibold">Cari objek</h2>
+              <h2 className="text-sm font-semibold">{t("viewerCariObjek")}</h2>
               <div className="mt-1 flex gap-2">
                 <input
                   className="min-w-0 flex-1 rounded border px-2 py-1 text-sm"
@@ -489,7 +503,7 @@ export default function ViewerPage(): JSX.Element {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") cari();
                   }}
-                  placeholder="Kata kunci…"
+                  placeholder={t("viewerKataKunci")}
                 />
                 <button
                   type="button"
@@ -497,7 +511,7 @@ export default function ViewerPage(): JSX.Element {
                   disabled={mencari || viewer === null}
                   className="rounded border px-3 py-1 text-sm hover:bg-slate-50 disabled:opacity-50"
                 >
-                  {mencari ? "…" : "Cari"}
+                  {mencari ? "…" : t("viewerCari")}
                 </button>
               </div>
               {hasilCari.length > 0 && (
@@ -518,10 +532,10 @@ export default function ViewerPage(): JSX.Element {
             </section>
 
             <section>
-              <h2 className="text-sm font-semibold">Struktur file 3D</h2>
+              <h2 className="text-sm font-semibold">{t("viewerStruktur")}</h2>
               {pohon.length === 0 ? (
                 <p className="mt-1 text-sm text-slate-500">
-                  Struktur belum tersedia.
+                  {t("viewerStrukturKosong")}
                 </p>
               ) : (
                 <ul className="mt-1 max-h-56 overflow-y-auto">
@@ -533,7 +547,7 @@ export default function ViewerPage(): JSX.Element {
             </section>
 
             <section>
-              <h2 className="text-sm font-semibold">Tindakan</h2>
+              <h2 className="text-sm font-semibold">{t("viewerTindakan")}</h2>
               <div className="mt-1 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -541,7 +555,7 @@ export default function ViewerPage(): JSX.Element {
                   disabled={dbIdTerpilih.length === 0}
                   className="rounded border px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-50"
                 >
-                  Isolasi
+                  {t("viewerIsolasi")}
                 </button>
                 <button
                   type="button"
@@ -549,14 +563,14 @@ export default function ViewerPage(): JSX.Element {
                   disabled={dbIdTerpilih.length === 0}
                   className="rounded border px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-50"
                 >
-                  Sembunyi
+                  {t("viewerSembunyi")}
                 </button>
                 <button
                   type="button"
                   onClick={tampilSemua}
                   className="rounded border px-2 py-1 text-sm hover:bg-slate-50"
                 >
-                  Tampilkan semua
+                  {t("viewerTampilSemua")}
                 </button>
                 <button
                   type="button"
@@ -564,14 +578,14 @@ export default function ViewerPage(): JSX.Element {
                   disabled={memotret || viewer === null}
                   className="rounded border px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-50"
                 >
-                  {memotret ? "…" : "Simpan PNG"}
+                  {memotret ? "…" : t("viewerSimpanPng")}
                 </button>
                 <button
                   type="button"
                   onClick={aturUlang}
                   className="rounded border px-2 py-1 text-sm hover:bg-slate-50"
                 >
-                  Atur ulang
+                  {t("viewerAturUlang")}
                 </button>
               </div>
               <label className="mt-2 flex items-center gap-2 text-sm">
@@ -580,23 +594,22 @@ export default function ViewerPage(): JSX.Element {
                   checked={autoZoom}
                   onChange={(e) => setAutoZoom(e.target.checked)}
                 />
-                Zoom otomatis ke pilihan
+                {t("viewerZoomOtomatis")}
               </label>
               <p className="mt-1 text-xs text-slate-500">
-                Pintasan: Esc hapus pilihan · F bingkai pilihan · H beranda
+                {t("viewerPintasan")}
               </p>
             </section>
 
             <section>
-              <h2 className="text-sm font-semibold">Properti</h2>
+              <h2 className="text-sm font-semibold">{t("viewerProperti")}</h2>
               {dbIdTerpilih.length === 0 ? (
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Belum ada objek terpilih.
+                  {t("viewerBelumPilih")}
                 </p>
               ) : properti.length === 0 ? (
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {namaTerpilih || `Objek #${dbIdTerpilih[0]}`} — properti tidak
-                  tersedia.
+                  {namaTerpilih || `Objek #${dbIdTerpilih[0]}`} — {t("viewerPropertiKosong")}
                 </p>
               ) : (
                 <div className="mt-1 overflow-hidden rounded border dark:border-slate-600">
@@ -606,9 +619,9 @@ export default function ViewerPage(): JSX.Element {
                   <table className="max-h-64 w-full overflow-y-auto text-sm">
                     <thead>
                       <tr className="border-b text-left text-xs uppercase text-slate-500 dark:border-slate-600 dark:text-slate-400">
-                        <th className="px-2 py-1 font-medium">Kategori</th>
-                        <th className="px-2 py-1 font-medium">Nama</th>
-                        <th className="px-2 py-1 font-medium">Nilai</th>
+                        <th className="px-2 py-1 font-medium">{t("viewerKategori")}</th>
+                        <th className="px-2 py-1 font-medium">{t("viewerNama")}</th>
+                        <th className="px-2 py-1 font-medium">{t("viewerNilai")}</th>
                       </tr>
                     </thead>
                     <tbody>

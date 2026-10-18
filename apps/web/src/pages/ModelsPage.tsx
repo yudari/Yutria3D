@@ -10,12 +10,25 @@ import {
   type ModelDto,
   type StatusDto,
 } from "../lib/api";
+import { format, strings, type KunciTeks } from "../i18n/translations";
+import { useBahasaStore } from "../store/bahasa";
 
 interface ModelTampil extends ModelDto {
   failureMessage?: string | null;
 }
 
 const STATUS_AKTIF = ["pending", "inprogress", "in_progress", "processing"];
+
+function tSync(k: KunciTeks): string {
+  let bahasa: "id" | "en" = "id";
+  try {
+    bahasa =
+      window.localStorage.getItem("yutria3d-bahasa") === "en" ? "en" : "id";
+  } catch {
+    bahasa = "id";
+  }
+  return strings[bahasa][k];
+}
 
 /** Daftar model + status translation live dari APS untuk yang masih aktif. */
 async function fetchModelsWithStatus(): Promise<ModelTampil[]> {
@@ -44,17 +57,17 @@ async function fetchModelsWithStatus(): Promise<ModelTampil[]> {
 function labelStatus(status: string): string {
   switch (status.toLowerCase()) {
     case "success":
-      return "Siap";
+      return tSync("statusSiap");
     case "failed":
-      return "Gagal";
+      return tSync("statusGagal");
     case "timeout":
-      return "Kedaluwarsa";
+      return tSync("statusKedaluwarsa");
     case "pending":
-      return "Menunggu antrean";
+      return tSync("statusAntre");
     case "inprogress":
     case "in_progress":
     case "processing":
-      return "Menerjemahkan";
+      return tSync("statusTerjemah");
     default:
       return status;
   }
@@ -93,6 +106,8 @@ function UploadDropzone({
 }): JSX.Element {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const bahasa = useBahasaStore((s) => s.bahasa);
+  const t = (k: KunciTeks): string => strings[bahasa][k];
 
   return (
     <div
@@ -124,8 +139,8 @@ function UploadDropzone({
           if (f) onPilih(f);
         }}
       />
-      <p className="font-medium">Seret & letakkan file .rvt di sini, atau klik untuk memilih</p>
-      <p className="mt-1 text-slate-500">Hanya file berekstensi .rvt</p>
+      <p className="font-medium">{t("dropJudul")}</p>
+      <p className="mt-1 text-slate-500">{t("dropIsi")}</p>
     </div>
   );
 }
@@ -135,6 +150,8 @@ export default function ModelsPage(): JSX.Element {
   const [toast, setToast] = useState<Toast | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [namaUnggah, setNamaUnggah] = useState<string>("");
+  const bahasa = useBahasaStore((s) => s.bahasa);
+  const t = (k: KunciTeks): string => strings[bahasa][k];
 
   function tampilToast(pesan: string, jenis: Toast["jenis"]): void {
     setToast({ pesan, jenis });
@@ -142,7 +159,7 @@ export default function ModelsPage(): JSX.Element {
   }
 
   const modelsQuery = useQuery({
-    queryKey: ["models"],
+    queryKey: ["models", bahasa],
     queryFn: fetchModelsWithStatus,
     refetchInterval: (query) => {
       const data = query.state.data as ModelTampil[] | undefined;
@@ -160,47 +177,47 @@ export default function ModelsPage(): JSX.Element {
     },
     onSuccess: () => {
       setProgress(null);
-      tampilToast("File terkirim ke Autodesk. Menerjemahkan file 3D…", "sukses");
+      tampilToast(t("toastTerkirim"), "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
       setProgress(null);
-      tampilToast(e instanceof Error ? e.message : "Unggahan gagal.", "galat");
+      tampilToast(e instanceof Error ? e.message : t("toastUnggahGagal"), "galat");
     },
   });
 
   const contohMutation = useMutation({
     mutationFn: () => uploadSample(),
     onSuccess: () => {
-      tampilToast("File contoh siap. Klik untuk melihat.", "sukses");
+      tampilToast(t("toastContohSiap"), "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
-      tampilToast(e instanceof Error ? e.message : "Gagal memuat contoh.", "galat");
+      tampilToast(e instanceof Error ? e.message : t("toastContohGagal"), "galat");
     },
   });
 
   const hapusMutation = useMutation({
     mutationFn: (id: string) => deleteModel(id),
     onSuccess: () => {
-      tampilToast("File 3D dihapus.", "sukses");
+      tampilToast(t("toastHapusOk"), "sukses");
       void queryClient.invalidateQueries({ queryKey: ["models"] });
     },
     onError: (e: unknown) => {
-      tampilToast(e instanceof Error ? e.message : "Gagal menghapus.", "galat");
+      tampilToast(e instanceof Error ? e.message : t("toastHapusGagal"), "galat");
     },
   });
 
   function handlePilih(file: File): void {
     if (!file.name.toLowerCase().endsWith(".rvt")) {
-      tampilToast("File harus berekstensi .rvt.", "galat");
+      tampilToast(t("toastHarusRvt"), "galat");
       return;
     }
     unggahMutation.mutate(file);
   }
 
   function handleHapus(m: ModelDto): void {
-    if (!window.confirm(`Hapus file 3D "${m.name}"?`)) return;
+    if (!window.confirm(format(t("hapusKonfirmasi"), { nama: m.name }))) return;
     hapusMutation.mutate(m.id);
   }
 
@@ -210,7 +227,7 @@ export default function ModelsPage(): JSX.Element {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <h1 className="text-2xl font-bold">File 3D Saya</h1>
+      <h1 className="text-2xl font-bold">{t("modelsJudul")}</h1>
 
       {!kosong && (
         <div className="mt-6">
@@ -218,7 +235,7 @@ export default function ModelsPage(): JSX.Element {
           {progress !== null && (
             <div className="mt-3">
               <p className="text-sm text-slate-600">
-                Tahap 1/2 — Mengunggah {namaUnggah}… {progress}%
+                {format(t("tahap1"), { nama: namaUnggah, progress })}
               </p>
               <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
                 <div
@@ -244,38 +261,41 @@ export default function ModelsPage(): JSX.Element {
         )}
         {modelsQuery.isError && (
           <p className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            Gagal memuat daftar file 3D. Coba lagi.
+            {t("modelsGagalMuat")}
           </p>
         )}
         {kosong && (
           <section className="mt-8 rounded-lg border bg-slate-50 p-8 text-center dark:bg-slate-900">
-            <h2 className="text-2xl font-bold">Unggah file .rvt pertama Anda</h2>
+            <h2 className="text-2xl font-bold">{t("modelsKosongJudul")}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-              Mulai dalam tiga langkah mudah:
+              {t("modelsKosongDeskripsi")}
             </p>
             <ol className="mx-auto mt-4 grid max-w-2xl gap-3 text-left text-sm sm:grid-cols-3">
               <li className="rounded border bg-white p-3">
-                <span className="font-bold">1. Unggah</span> — seret file .rvt ke kotak di bawah.
+                <span className="font-bold">{t("modelsLangkah1")}</span>
+                {t("modelsLangkah1Isi")}
               </li>
               <li className="rounded border bg-white p-3">
-                <span className="font-bold">2. Tunggu penerjemahan</span> — Autodesk memproses file Anda.
+                <span className="font-bold">{t("modelsLangkah2")}</span>
+                {t("modelsLangkah2Isi")}
               </li>
               <li className="rounded border bg-white p-3">
-                <span className="font-bold">3. Klik untuk melihat</span> — buka file 3D di Viewer.
+                <span className="font-bold">{t("modelsLangkah3")}</span>
+                {t("modelsLangkah3Isi")}
               </li>
             </ol>
             <div className="mx-auto mt-6 max-w-2xl">
               <UploadDropzone onPilih={handlePilih} sedangUnggah={unggahMutation.isPending} besar />
             </div>
             <div className="mt-4 flex items-center justify-center gap-3 text-sm">
-              <span className="text-slate-400">atau</span>
+              <span className="text-slate-400">{t("modelsAtau")}</span>
               <button
                 type="button"
                 onClick={() => contohMutation.mutate()}
                 disabled={contohMutation.isPending}
                 className="rounded border border-blue-300 px-4 py-2 font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50"
               >
-                {contohMutation.isPending ? "Menyiapkan…" : "Lihat file contoh (tanpa unggah)"}
+                {contohMutation.isPending ? t("modelsMenyiapkan") : t("modelsLihatContoh")}
               </button>
             </div>
           </section>
@@ -302,12 +322,14 @@ export default function ModelsPage(): JSX.Element {
                     )}
                     <p className="mt-1 text-sm text-slate-500">
                       {(m.sizeBytes / 1024 / 1024).toFixed(2)} MB ·{" "}
-                      {new Date(m.createdAt).toLocaleString("id-ID")}
+                      {new Date(m.createdAt).toLocaleString(
+                        bahasa === "id" ? "id-ID" : "en-US",
+                      )}
                     </p>
                     {aktif && (
                       <div className="mt-2 max-w-md">
                         <p className="text-sm text-slate-600">
-                          Tahap 2/2 — Menerjemahkan di Autodesk… {m.progress}%
+                          {format(t("tahap2"), { progress: m.progress })}
                         </p>
                         <div className="mt-1 h-2 overflow-hidden rounded bg-slate-200">
                           <div
@@ -316,8 +338,7 @@ export default function ModelsPage(): JSX.Element {
                           />
                         </div>
                         <p className="mt-1 text-xs text-slate-400">
-                          File besar bisa memakan waktu 10–30 menit. Halaman ini
-                          memantau otomatis.
+                          {t("modelsBesarCatatan")}
                         </p>
                       </div>
                     )}
@@ -335,7 +356,7 @@ export default function ModelsPage(): JSX.Element {
                       disabled={hapusMutation.isPending}
                       className="rounded border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
                     >
-                      Hapus
+                      {t("modelsHapus")}
                     </button>
                   </div>
                 </li>
